@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: '大厅'
+  navigationBarTitleText: '数据列表'
 })
 

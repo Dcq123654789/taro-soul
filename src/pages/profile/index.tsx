@@ -1,122 +1,121 @@
-import { View, Text, Image } from '@tarojs/components'
+import Taro from "@tarojs/taro";
+import { View, Text, Image } from "@tarojs/components";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
-export default function Profile () {
+const profileActions = [
+  { title: "用户协议", desc: "查看最新条款", route: "/pages/agreement/index" },
+  { title: "隐私政策", desc: "管理隐私设置", route: "/pages/privacy/index" },
+  { title: "通知中心", desc: "选择消息提醒", route: "/pages/notify/index" },
+  { title: "账号安全", desc: "重置密码与验证", route: "/pages/security/index" },
+  {
+    title: "帮助与支持",
+    desc: "联系顾问或反馈",
+    route: "/pages/support/index",
+  },
+];
+
+export default function PersonalCenter() {
+  useAuthGuard();
   return (
     <View
       style={{
-        minHeight: '100vh',
-        backgroundColor: '#FFFFFF',
-        padding: '16px 16px 0',
-        boxSizing: 'border-box'
+        minHeight: "100vh",
+        backgroundColor: "#F8FAFC",
+        padding: "20px 16px 32px",
+        boxSizing: "border-box",
       }}
     >
       <View
         style={{
-          display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center',
-          marginBottom: '16px'
+          backgroundColor: "#FFFFFF",
+          borderRadius: "20px",
+          padding: "20px",
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: "20px",
+          boxShadow: "0 18px 36px rgba(15,23,42,0.08)",
         }}
       >
         <Image
-          src='https://via.placeholder.com/72x72.png?text=%F0%9F%A4%97'
-          style={{ width: '72px', height: '72px', borderRadius: '36px', marginRight: '12px' }}
-        />
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>
-            昵称用户
-          </Text>
-          <View style={{ marginTop: '4px' }}>
-            <Text style={{ fontSize: '12px', color: '#64748B' }}>个性签名：保持热爱</Text>
-          </View>
-        </View>
-        <View
+          src="https://cdn.jsdelivr.net/gh/ihommani/assets/avatar-fabric.jpg"
           style={{
-            padding: '6px 10px',
-            borderRadius: '999px',
-            backgroundColor: '#F1F5F9'
+            width: "72px",
+            height: "72px",
+            borderRadius: "18px",
+            marginRight: "16px",
           }}
-        >
-          <Text style={{ fontSize: '12px', color: '#475569' }}>LV 3</Text>
+        />
+        <View>
+          <Text
+            style={{ fontSize: "18px", fontWeight: "700", color: "#0F172A" }}
+          >
+            陈婕
+          </Text>
+          <Text
+            style={{
+              display: "block",
+              marginTop: "6px",
+              fontSize: "12px",
+              color: "#94A3B8",
+            }}
+          >
+            员工编号：WX-1027
+          </Text>
         </View>
       </View>
 
-      <View
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          gap: '10px',
-          marginBottom: '16px'
-        } as any}
-      >
-        {[
-          { label: '关注', value: 68 },
-          { label: '粉丝', value: 125 },
-          { label: '获赞', value: '1.2k' }
-        ].map((s) => (
+      <View>
+        {profileActions.map((action, idx) => (
           <View
-            key={s.label}
+            key={action.title}
             style={{
-              backgroundColor: '#F8FAFC',
-              borderRadius: '12px',
-              padding: '12px',
-              textAlign: 'center'
-            } as any}
-          >
-            <Text style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A' }}>
-              {String(s.value)}
-            </Text>
-            <View style={{ marginTop: '4px' }}>
-              <Text style={{ fontSize: '12px', color: '#64748B' }}>{s.label}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <View
-        style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: '12px',
-          boxShadow: '0 1px 10px rgba(15,23,42,0.06)'
-        }}
-      >
-        {[
-          { title: '我的订单', desc: '查看全部订单' },
-          { title: '地址管理', desc: '收货地址与联系信息' },
-          { title: '账户设置', desc: '资料、隐私与安全' }
-        ].map((item, idx, arr) => (
-          <View
-            key={item.title}
-            style={{
-              padding: '14px 12px',
-              borderBottom: idx === arr.length - 1 ? '0 none' : '1px solid #F1F5F9',
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center'
+              marginBottom: idx === profileActions.length - 1 ? "0" : "12px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "16px",
+              padding: "16px 18px",
+              boxShadow: "0 12px 26px rgba(15,23,42,0.06)",
+            }}
+            hoverClass="page-hover"
+            onClick={() => {
+              if (!action.route) return;
+              Taro.navigateTo({ url: action.route });
             }}
           >
             <View
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: '#EEF2FF',
-                marginRight: '10px'
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A' }}>
-                {item.title}
-              </Text>
-              <View style={{ marginTop: '2px' }}>
-                <Text style={{ fontSize: '12px', color: '#94A3B8' }}>{item.desc}</Text>
+            >
+              <View>
+                <Text
+                  style={{
+                    fontSize: "15px",
+                    fontWeight: "600",
+                    color: "#0F172A",
+                  }}
+                >
+                  {action.title}
+                </Text>
+                <Text
+                  style={{
+                    display: "block",
+                    marginTop: "6px",
+                    fontSize: "12px",
+                    color: "#94A3B8",
+                  }}
+                >
+                  {action.desc}
+                </Text>
               </View>
+              <Text style={{ fontSize: "18px", color: "#CBD5F5" }}>›</Text>
             </View>
-            <Text style={{ color: '#CBD5E1' }}>{'>'}</Text>
           </View>
         ))}
       </View>
     </View>
-  )
+  );
 }
-
