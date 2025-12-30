@@ -1,6 +1,5 @@
 import Taro from "@tarojs/taro";
 import { View, Text, Image } from "@tarojs/components";
-import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 const profileActions = [
   { title: "用户协议", desc: "查看最新条款", route: "/pages/agreement/index" },
@@ -15,7 +14,6 @@ const profileActions = [
 ];
 
 export default function PersonalCenter() {
-  useAuthGuard();
   return (
     <View
       style={{

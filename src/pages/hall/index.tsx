@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 type TabType = "order" | "employeeOrder";
 type StatusType = "completed" | "processing" | "pending";
@@ -17,122 +16,13 @@ interface OrderItem {
 }
 
 export default function Hall() {
-  useAuthGuard();
   const scopeRef = (globalThis as any)?.scope;
   const [activeTab, setActiveTab] = useState<TabType>("order");
   const [activeStatus, setActiveStatus] = useState<StatusType>("completed");
 
-  // 模拟订单数据
-  const defaultOrderData: OrderItem[] = [
-    {
-      id: "1",
-      orderNo: "ORD20240101001",
-      customerName: "张三",
-      amount: 1280.0,
-      status: "completed",
-      createTime: "2024-01-15 10:30:00",
-    },
-    {
-      id: "2",
-      orderNo: "ORD20240101002",
-      customerName: "李四",
-      amount: 2560.0,
-      status: "completed",
-      createTime: "2024-01-15 11:20:00",
-    },
-    {
-      id: "3",
-      orderNo: "ORD20240101003",
-      customerName: "王五",
-      amount: 890.0,
-      status: "processing",
-      createTime: "2024-01-15 14:15:00",
-    },
-    {
-      id: "4",
-      orderNo: "ORD20240101004",
-      customerName: "赵六",
-      amount: 3200.0,
-      status: "processing",
-      createTime: "2024-01-15 15:30:00",
-    },
-    {
-      id: "5",
-      orderNo: "ORD20240101005",
-      customerName: "钱七",
-      amount: 1500.0,
-      status: "pending",
-      createTime: "2024-01-15 16:00:00",
-    },
-    {
-      id: "6",
-      orderNo: "ORD20240101006",
-      customerName: "孙八",
-      amount: 980.0,
-      status: "pending",
-      createTime: "2024-01-15 16:30:00",
-    },
-  ];
-
-  // 模拟员工订单数据
-  const defaultEmployeeOrderData: OrderItem[] = [
-    {
-      id: "e1",
-      orderNo: "ORD20240101001",
-      customerName: "张三",
-      amount: 1280.0,
-      status: "completed",
-      createTime: "2024-01-15 10:30:00",
-      employeeName: "员工A",
-    },
-    {
-      id: "e2",
-      orderNo: "ORD20240101002",
-      customerName: "李四",
-      amount: 2560.0,
-      status: "completed",
-      createTime: "2024-01-15 11:20:00",
-      employeeName: "员工B",
-    },
-    {
-      id: "e3",
-      orderNo: "ORD20240101003",
-      customerName: "王五",
-      amount: 890.0,
-      status: "processing",
-      createTime: "2024-01-15 14:15:00",
-      employeeName: "员工A",
-    },
-    {
-      id: "e4",
-      orderNo: "ORD20240101004",
-      customerName: "赵六",
-      amount: 3200.0,
-      status: "processing",
-      createTime: "2024-01-15 15:30:00",
-      employeeName: "员工C",
-    },
-    {
-      id: "e5",
-      orderNo: "ORD20240101005",
-      customerName: "钱七",
-      amount: 1500.0,
-      status: "pending",
-      createTime: "2024-01-15 16:00:00",
-      employeeName: "员工B",
-    },
-    {
-      id: "e6",
-      orderNo: "ORD20240101006",
-      customerName: "孙八",
-      amount: 980.0,
-      status: "pending",
-      createTime: "2024-01-15 16:30:00",
-      employeeName: "员工A",
-    },
-  ];
-  const [orderData, setOrderData] = useState<OrderItem[]>(defaultOrderData);
-  const [employeeOrderData] = useState<OrderItem[]>(defaultEmployeeOrderData);
+  const [orderData, setOrderData] = useState<OrderItem[]>([]);
+  const [employeeOrderData, setEmployeeOrderData] = useState<OrderItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const [, setFieldColumns] = useState<Record<string, any>[]>([]);
 
   const joinUrl = (baseUrl: string, path: string) => {
@@ -147,10 +37,76 @@ export default function Hall() {
     if (Array.isArray(res.data)) return res.data;
     if (Array.isArray(res.records)) return res.records;
     if (Array.isArray(res.list)) return res.list;
+    // 处理嵌套的 content 结构
+    if (res.data && Array.isArray(res.data.content)) return res.data.content;
     return [];
   };
 
+  /*
+    状态值标准化函数：将后端返回的状态码转换为前端定义的三种状态类型
+    生成逻辑：根据 statusCode 字段的值进行状态映射
+    依赖技术：TypeScript 类型断言、条件判断
+  */
+  const normalizeStatus = (statusCode: string): StatusType => {
+    console.log("normalizeStatus input:", statusCode);
+    const statusMap: Record<string, StatusType> = {
+      已完成: "completed",
+      进行中: "processing",
+      待派发: "pending",
+      待确认: "pending",
+      已确认: "processing",
+      生产中: "processing",
+      已审批: "processing",
+      // 添加一些可能的其他状态值
+      completed: "completed",
+      processing: "processing",
+      pending: "pending",
+    };
+    const result = statusMap[statusCode] || "pending";
+    console.log("normalizeStatus output:", result);
+    return result;
+  };
+
+  /*
+    时间格式化函数：将ISO时间字符串转换为中文格式
+    生成逻辑：解析ISO时间格式并转换为 YYYY-MM-DD HH:mm:ss 格式
+    依赖技术：JavaScript Date对象、字符串处理
+  */
+  const formatDateTime = (isoString: string): string => {
+    if (!isoString) return "";
+    try {
+      const date = new Date(isoString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      const seconds = String(date.getSeconds()).padStart(2, "0");
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch {
+      return isoString;
+    }
+  };
+
+  /*
+    数据转换函数：将后端API数据转换为前端OrderItem格式
+    生成逻辑：字段映射、数据类型转换、计算总价等
+    依赖技术：对象解构、类型断言、数学运算
+  */
+  const transformOrderData = (rawData: any[]): OrderItem[] => {
+    return rawData.map((item: any) => ({
+      id: item._id || item.id || "",
+      orderNo: item.orderNo || "",
+      customerName: item.clientName || "",
+      amount: (item.unitPrice || 0) * (item.totalQuantity || 0),
+      status: normalizeStatus(item.statusCode || ""),
+      createTime: formatDateTime(item.createTime || ""),
+      employeeName: item.employeeName,
+    }));
+  };
+
   const fetchData = useCallback(async () => {
+    console.log("fetchData called, scopeRef:", scopeRef);
     if (!scopeRef) {
       Taro.showToast({
         title: "全局 scope 不存在，请检查注册逻辑",
@@ -161,6 +117,7 @@ export default function Hall() {
 
     const apiBaseUrl =
       scopeRef.session?.app_service_base_url || scopeRef.BASE_URL || "";
+    console.log("apiBaseUrl:", apiBaseUrl);
     if (!apiBaseUrl) {
       Taro.showToast({
         title: "API 地址未配置，请先设置 scope BASE_URL",
@@ -170,10 +127,30 @@ export default function Hall() {
     }
 
     try {
+      setLoading(true);
       const batchUrl = joinUrl(apiBaseUrl, "/api/batch");
       const fieldUrl = joinUrl(apiBaseUrl, "/api/entity/fields");
 
-      const res = await scopeRef.requestWithLoadingAndPagination(
+      // 查询订单数据 (entity: "order")
+      const orderRes = await scopeRef.requestWithLoadingAndPagination(
+        batchUrl,
+        {
+          entity: "order",
+          action: "query",
+        },
+        {
+          method: "POST",
+          paramType: "body",
+        }
+      );
+      const orderRemoteList = safeExtractList(orderRes);
+      console.log("orderRemoteList:", orderRemoteList);
+      const transformedOrderData = transformOrderData(orderRemoteList);
+      console.log("transformedOrderData:", transformedOrderData);
+      setOrderData(transformedOrderData);
+
+      // 查询员工订单数据 (entity: "work_order")
+      const employeeOrderRes = await scopeRef.requestWithLoadingAndPagination(
         batchUrl,
         {
           entity: "work_order",
@@ -184,8 +161,16 @@ export default function Hall() {
           paramType: "body",
         }
       );
-      const remoteList = safeExtractList(res);
-      setOrderData(remoteList.length ? (remoteList as OrderItem[]) : []);
+      const employeeOrderRemoteList = safeExtractList(employeeOrderRes);
+      console.log("employeeOrderRemoteList:", employeeOrderRemoteList);
+      const transformedEmployeeOrderData = transformOrderData(
+        employeeOrderRemoteList
+      );
+      console.log(
+        "transformedEmployeeOrderData:",
+        transformedEmployeeOrderData
+      );
+      setEmployeeOrderData(transformedEmployeeOrderData);
 
       const columnData = await scopeRef.requestWithLoadingAndPagination(
         fieldUrl,
@@ -206,12 +191,18 @@ export default function Hall() {
         title: message,
         icon: "none",
       });
+    } finally {
+      setLoading(false);
     }
   }, [scopeRef]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (scopeRef) {
+      fetchData();
+    }
+  }, [fetchData, scopeRef]);
+
+  // 在组件挂载时，如果 scopeRef 还不可用，也尝试获取数据
 
   /*
     生成逻辑：利用 useCallback 封装批量查询函数，依赖全局 scope 对象调用 requestWithLoadingAndPagination，并在 useEffect 中首屏触发；通过 safeExtractList 兼容不同返回结构。
@@ -221,8 +212,17 @@ export default function Hall() {
   // 根据当前选中的tab和status过滤数据
   const filteredData = useMemo(() => {
     const data = activeTab === "order" ? orderData : employeeOrderData;
-    return data.filter((item) => item.status === activeStatus);
-  }, [activeTab, activeStatus]);
+    console.log(
+      "filteredData - activeTab:",
+      activeTab,
+      "activeStatus:",
+      activeStatus
+    );
+    console.log("filteredData - data:", data);
+    const filtered = data.filter((item) => item.status === activeStatus);
+    console.log("filteredData - filtered:", filtered);
+    return filtered;
+  }, [activeTab, activeStatus, orderData, employeeOrderData]);
 
   const getStatusText = (status: StatusType) => {
     const map = {
@@ -377,7 +377,20 @@ export default function Hall() {
 
       {/* 订单列表 */}
       <View style={{ padding: "16px" }}>
-        {filteredData.length === 0 ? (
+        {loading ? (
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderRadius: "12px",
+              padding: "40px 20px",
+              textAlign: "center",
+            }}
+          >
+            <Text style={{ fontSize: "14px", color: "#94A3B8" }}>
+              数据加载中...
+            </Text>
+          </View>
+        ) : filteredData.length === 0 ? (
           <View
             style={{
               backgroundColor: "#FFFFFF",

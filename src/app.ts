@@ -8,10 +8,14 @@ import "@nutui/nutui-react-taro/dist/style.css";
 function App({ children }: PropsWithChildren<any>) {
   useLaunch(() => {
     const scopeRef = (globalThis as any)?.scope;
+
     if (!scopeRef) {
       console.warn("全局 scope 未挂载，请检查 utils/scope 初始化逻辑");
     }
-
+    Taro.removeStorageSync("token");
+    Taro.removeStorageSync("tokenExpireTime");
+    Taro.removeStorageSync("openid");
+    Taro.removeStorageSync("userInfo");
     // 根据环境配置 BASE_URL
     // H5 环境：使用代理，不需要配置 BASE_URL
     // 小程序环境：需要配置完整 URL（代理不生效）
@@ -48,14 +52,64 @@ function App({ children }: PropsWithChildren<any>) {
       }
     }
 
+    // 检查 token 有效性
     const token = Taro.getStorageSync("token");
-    console.log("token", token);
-    if (!token) {
-      Taro.reLaunch({ url: "/pages/login/index" });
-      return;
+    const tokenExpireTime = Taro.getStorageSync("tokenExpireTime");
+    const now = Date.now();
+
+    let isTokenValid = false;
+
+    if (token && tokenExpireTime && now < tokenExpireTime) {
+      // token 存在且未过期
+      isTokenValid = true;
+
+      // 同步 token 到全局 scope
+      scopeRef?.setTemporaryData?.("token", token);
+
+      // 同步 openid 和 userInfo（如果存在）
+      const openid = Taro.getStorageSync("openid");
+      const userInfo = Taro.getStorageSync("userInfo");
+
+      if (openid) {
+        scopeRef?.setTemporaryData?.("openid", openid);
+      }
+
+      if (userInfo) {
+        scopeRef?.setTemporaryData?.("userInfo", userInfo);
+      }
+
+      console.log("[App] token 验证通过，自动登录");
+    } else {
+      // token 不存在或已过期，清除过期数据
+      if (token || tokenExpireTime) {
+        Taro.removeStorageSync("token");
+        Taro.removeStorageSync("tokenExpireTime");
+        Taro.removeStorageSync("openid");
+        Taro.removeStorageSync("userInfo");
+        console.log("[App] token 已过期，已清除");
+      }
     }
 
-    Taro.switchTab({ url: "/pages/index/index" });
+    // 根据登录状态决定跳转页面
+    const targetUrl = isTokenValid
+      ? "/pages/index/index"
+      : "/pages/login/index";
+
+    Taro.switchTab({
+      url: targetUrl,
+      success: () => {
+        // 在 tabBar 页面加载成功后设置样式
+        setTimeout(() => {
+          Taro.setTabBarStyle({
+            color: "#666666",
+            selectedColor: "#07C160",
+            backgroundColor: "#ffffff",
+            borderStyle: "black",
+            // fontSize: "14px", // 设置字体大小
+          });
+        }, 100); // 稍微延时确保 tabBar 完全初始化
+      },
+    });
   });
 
   // children 是将要会渲染的页面
@@ -65,6 +119,20 @@ function App({ children }: PropsWithChildren<any>) {
 export default App;
 
 /*
-  生成逻辑：在应用入口通过 side-effect 引入 utils/scope，并在 useLaunch 中根据 token 判断跳转，确保登录页为首屏，登录后自动进入业务首页。
-  依赖技术：Taro useLaunch、Taro Storage、globalThis scope。
+  生成逻辑：
+  1. 应用启动时检查本地存储的 token 和过期时间
+  2. 如果 token 存在且未过期（7天有效期），同步到全局 scope 并跳转首页
+  3. 如果 token 不存在或已过期，清除过期数据并跳转登录页
+  4. 同时同步 openid 和 userInfo 到全局 scope（用于微信相关功能）
+
+  依赖技术：
+  - Taro useLaunch：应用启动钩子
+  - Taro Storage：本地持久化存储 token、openid 和用户信息
+  - globalThis scope：全局状态管理和临时数据存储
+  - 时间戳比较：检查 token 是否在有效期内（7天）
+
+  安全原理：
+  - token 7天过期时间，过期后强制重新登录
+  - 每次启动时验证 token 有效性，确保安全性
+  - 过期 token 自动清除，避免使用无效凭证
 */

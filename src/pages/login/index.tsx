@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { View, Text, Button } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 
@@ -6,12 +6,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const scopeRef = (globalThis as any)?.scope;
-  useEffect(() => {
-    const token = Taro.getStorageSync("token");
-    if (token) {
-      Taro.switchTab({ url: "/pages/index/index" });
-    }
-  }, []);
 
   // 微信一键登录：获取code后直接调用后端，后端通过code获取用户信息（openid），自动创建或登录账号
   const handleWechatLogin = useCallback(async () => {
@@ -87,8 +81,10 @@ export default function LoginPage() {
 
       const { token, openid, userId, role, enabled } = result.data;
 
-      // 4. 保存token和用户信息（包括openid）
+      // 4. 保存token和用户信息（包括openid），设置7天过期时间
+      const tokenExpireTime = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7天后的时间戳
       Taro.setStorageSync("token", token);
+      Taro.setStorageSync("tokenExpireTime", tokenExpireTime);
       Taro.setStorageSync("openid", openid);
       Taro.setStorageSync("userInfo", { userId, openid, role, enabled });
 
