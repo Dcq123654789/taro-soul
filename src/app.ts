@@ -91,21 +91,29 @@ function App({ children }: PropsWithChildren<any>) {
       ? "/pages/index/index"
       : "/pages/login/index";
 
-    Taro.switchTab({
-      url: targetUrl,
-      success: () => {
-        // 在 tabBar 页面加载成功后设置样式
-        setTimeout(() => {
-          Taro.setTabBarStyle({
-            color: "#666666",
-            selectedColor: "#07C160",
-            backgroundColor: "#ffffff",
-            borderStyle: "black",
-            // fontSize: "14px", // 设置字体大小
-          });
-        }, 100); // 稍微延时确保 tabBar 完全初始化
-      },
-    });
+    if (isTokenValid) {
+      // 已登录用户跳转到 tabBar 页面
+      Taro.switchTab({
+        url: targetUrl,
+        success: () => {
+          // 在 tabBar 页面加载成功后设置样式
+          setTimeout(() => {
+            Taro.setTabBarStyle({
+              color: "#666666",
+              selectedColor: "#07C160",
+              backgroundColor: "#ffffff",
+              borderStyle: "black",
+              // fontSize: "14px", // 设置字体大小
+            });
+          }, 100); // 稍微延时确保 tabBar 完全初始化
+        },
+      });
+    } else {
+      // 未登录用户跳转到登录页面（非 tabBar 页面）
+      Taro.redirectTo({
+        url: targetUrl,
+      });
+    }
   });
 
   // children 是将要会渲染的页面
@@ -117,13 +125,16 @@ export default App;
 /*
   生成逻辑：
   1. 应用启动时检查本地存储的 token 和过期时间
-  2. 如果 token 存在且未过期（7天有效期），同步到全局 scope 并跳转首页
-  3. 如果 token 不存在或已过期，清除过期数据并跳转登录页
+  2. 如果 token 存在且未过期（7天有效期），同步到全局 scope 并使用 switchTab 跳转首页
+  3. 如果 token 不存在或已过期，清除过期数据并使用 redirectTo 跳转登录页
   4. 同时同步 openid 和 userInfo 到全局 scope（用于微信相关功能）
+  5. 根据页面是否在 tabBar 中配置选择不同的跳转方式
 
   依赖技术：
   - Taro useLaunch：应用启动钩子
   - Taro Storage：本地持久化存储 token、openid 和用户信息
+  - Taro switchTab：跳转到 tabBar 配置的页面
+  - Taro redirectTo：重定向到非 tabBar 页面
   - globalThis scope：全局状态管理和临时数据存储
   - 时间戳比较：检查 token 是否在有效期内（7天）
 
