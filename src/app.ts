@@ -12,10 +12,6 @@ function App({ children }: PropsWithChildren<any>) {
     if (!scopeRef) {
       console.warn("全局 scope 未挂载，请检查 utils/scope 初始化逻辑");
     }
-    Taro.removeStorageSync("token");
-    Taro.removeStorageSync("tokenExpireTime");
-    Taro.removeStorageSync("openid");
-    Taro.removeStorageSync("userInfo");
     // 根据环境配置 BASE_URL
     // H5 环境：使用代理，不需要配置 BASE_URL
     // 小程序环境：需要配置完整 URL（代理不生效）
