@@ -37,24 +37,10 @@ function toAbsoluteUrl(url: string): string {
 }
 
 // ===================== Axios 实例与拦截器 =====================
-// Base64 编码/解码辅助函数（兼容小程序环境）
-const base64Encode = (str: string): string => {
-  try {
-    // 小程序环境兼容处理
-    if (typeof btoa !== 'undefined') {
-      return btoa(encodeURIComponent(str));
-    }
-    // 备用方案：使用简单的字符替换（生产环境应使用更安全的加密）
-    return encodeURIComponent(str).replace(/%/g, '_');
-  } catch (error) {
-    console.error("Base64 编码失败:", error);
-    return str;
-  }
-};
 
 const base64Decode = (str: string): string => {
   // 首先尝试用 atob 解码（标准 base64）
-  if (typeof atob !== 'undefined') {
+  if (typeof atob !== "undefined") {
     try {
       return decodeURIComponent(atob(str));
     } catch (error) {
@@ -65,7 +51,7 @@ const base64Decode = (str: string): string => {
 
   // 尝试备用方案：恢复字符替换
   try {
-    return decodeURIComponent(str.replace(/_/g, '%'));
+    return decodeURIComponent(str.replace(/_/g, "%"));
   } catch (error) {
     console.error("备用方案解码也失败:", error);
     // 如果都失败，返回原始字符串

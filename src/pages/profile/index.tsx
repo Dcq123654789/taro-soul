@@ -36,12 +36,15 @@ export default function PersonalCenter() {
         }}
       >
         <Image
-          src="https://cdn.jsdelivr.net/gh/ihommani/assets/avatar-fabric.jpg"
+          src="https://ui-avatars.com/api/?name=陈婕&size=72&background=07C160&color=fff"
           style={{
             width: "72px",
             height: "72px",
             borderRadius: "18px",
             marginRight: "16px",
+          }}
+          onError={() => {
+            console.warn("头像加载失败，使用默认头像");
           }}
         />
         <View>

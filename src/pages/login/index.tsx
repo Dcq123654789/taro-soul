@@ -18,6 +18,8 @@ interface LoginResponse {
     userId: string;
     role: string;
     enabled: string;
+    nickname?: string; // 用户昵称
+    avatarUrl?: string; // 用户头像
   };
 }
 
@@ -26,6 +28,8 @@ interface UserInfo {
   openid: string;
   role: string;
   enabled: string;
+  nickname?: string; // 用户昵称
+  avatarUrl?: string; // 用户头像
 }
 
 // URL构建工具函数
@@ -57,7 +61,6 @@ const buildApiUrl = (apiPath: string, scopeRef: any): string => {
   // 最后兜底：使用开发环境地址
   return `http://localhost:8888${apiPath}`;
 };
-
 // Base64 编码/解码辅助函数（兼容小程序环境）
 const base64Encode = (str: string): string => {
   try {
@@ -136,6 +139,7 @@ export default function LoginPage() {
 
   // 使用 useRef 避免不必要的重渲染
   const isRequestCancelledRef = useRef(false);
+  const isGettingUserInfoRef = useRef(false);
   const scopeRef = useRef((globalThis as any)?.scope);
 
   // 缓存 API URL，避免重复计算
@@ -144,10 +148,11 @@ export default function LoginPage() {
     return buildApiUrl(apiPath, scopeRef.current);
   }, []);
 
-  // 组件卸载时清理请求
+  // 组件卸载时清理请求和状态
   useEffect(() => {
     return () => {
       isRequestCancelledRef.current = true;
+      isGettingUserInfoRef.current = false;
     };
   }, []);
 
@@ -164,6 +169,55 @@ export default function LoginPage() {
     return true;
   }, [agreeProtocol]);
 
+  // 获取微信用户信息（带频率限制）
+  const getWechatUserInfo = useCallback(async () => {
+    // 防止频繁调用
+    if (isGettingUserInfoRef.current) {
+      console.warn("正在获取用户信息，请稍后再试");
+      return null;
+    }
+
+    isGettingUserInfoRef.current = true;
+
+    try {
+      const userInfoRes = await Taro.getUserProfile({
+        desc: "用于完善用户资料",
+      });
+
+      // 延迟重置标记，防止过于频繁的调用
+      setTimeout(() => {
+        isGettingUserInfoRef.current = false;
+      }, 2000); // 2秒内不允许再次调用
+
+      return {
+        nickName: userInfoRes.userInfo.nickName,
+        avatarUrl: userInfoRes.userInfo.avatarUrl,
+        gender: userInfoRes.userInfo.gender,
+        country: userInfoRes.userInfo.country,
+        province: userInfoRes.userInfo.province,
+        city: userInfoRes.userInfo.city,
+        language: userInfoRes.userInfo.language,
+        is_demote: (userInfoRes.userInfo as any).is_demote,
+      };
+    } catch (error) {
+      console.error("获取用户信息失败:", error);
+      // 用户拒绝授权或其他错误，立即重置标记
+      isGettingUserInfoRef.current = false;
+
+      // 如果是用户主动取消，不显示错误提示
+      const errorMsg = (error as any)?.errMsg || "";
+      if (errorMsg.includes("auth deny") || errorMsg.includes("cancel")) {
+        Taro.showToast({
+          title: "需要授权获取用户信息才能登录",
+          icon: "none",
+          duration: 3000,
+        });
+      }
+
+      return null;
+    }
+  }, []);
+
   // 获取微信登录code
   const getWechatCode = useCallback(async (): Promise<string> => {
     const loginRes = await Taro.login();
@@ -175,9 +229,14 @@ export default function LoginPage() {
 
   // 执行登录请求（带重试机制）
   const performLoginRequest = useCallback(
-    async (code: string, retryCount = 0): Promise<LoginResponse> => {
+    async (
+      code: string,
+      userInfo: any = null,
+      retryCount = 0
+    ): Promise<LoginResponse> => {
       const maxRetries = 2;
       const timeout = 10000; // 10秒超时
+      console.log(userInfo, "122ddd");
 
       try {
         // 检查请求是否被取消
@@ -185,10 +244,16 @@ export default function LoginPage() {
           throw new Error("请求已取消");
         }
 
+        const requestData: any = { code };
+        if (userInfo) {
+          requestData.userInfo = userInfo;
+        }
+        console.log(requestData, 12223);
+
         const response = await Taro.request<LoginResponse>({
           url: apiUrl,
           method: "POST",
-          data: { code },
+          data: requestData,
           header: {
             "Content-Type": "application/json",
           },
@@ -307,11 +372,15 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      // 1. 获取微信code
+      // 1. 获取微信用户信息
+      const userInfo = await getWechatUserInfo();
+
+      // 2. 获取微信code
       const code = await getWechatCode();
 
-      // 2. 执行登录请求
-      const result = await performLoginRequest(code);
+      // 3. 执行登录请求（包含用户信息）
+      const result = await performLoginRequest(code, userInfo);
+      console.log(result, "result");
 
       // 3. 保存认证信息
       saveAuthInfo(result.data);
@@ -331,6 +400,7 @@ export default function LoginPage() {
   }, [
     loading,
     checkProtocolAgreement,
+    getWechatUserInfo,
     getWechatCode,
     performLoginRequest,
     saveAuthInfo,
@@ -380,7 +450,6 @@ export default function LoginPage() {
         <Button
           disabled={loading}
           onClick={handleWechatLogin}
-          onTap={handleWechatLogin}
           style={{
             backgroundColor: loading ? "#CBD5F5" : "#07C160",
             color: "#FFFFFF",
