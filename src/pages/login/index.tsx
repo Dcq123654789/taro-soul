@@ -58,12 +58,48 @@ const buildApiUrl = (apiPath: string, scopeRef: any): string => {
   return `http://localhost:8888${apiPath}`;
 };
 
+// Base64 编码/解码辅助函数（兼容小程序环境）
+const base64Encode = (str: string): string => {
+  try {
+    // 小程序环境兼容处理
+    if (typeof btoa !== "undefined") {
+      return btoa(encodeURIComponent(str));
+    }
+    // 备用方案：使用简单的字符替换（生产环境应使用更安全的加密）
+    return encodeURIComponent(str).replace(/%/g, "_");
+  } catch (error) {
+    console.error("Base64 编码失败:", error);
+    return str;
+  }
+};
+
+const base64Decode = (str: string): string => {
+  // 首先尝试用 atob 解码（标准 base64）
+  if (typeof atob !== "undefined") {
+    try {
+      return decodeURIComponent(atob(str));
+    } catch (error) {
+      // atob 解码失败，可能是备用方案编码的数据
+      console.warn("atob 解码失败，尝试备用方案:", error);
+    }
+  }
+
+  // 尝试备用方案：恢复字符替换
+  try {
+    return decodeURIComponent(str.replace(/_/g, "%"));
+  } catch (error) {
+    console.error("备用方案解码也失败:", error);
+    // 如果都失败，返回原始字符串
+    return str;
+  }
+};
+
 // 加密存储工具函数
 const secureStorage = {
   set: (key: string, value: string) => {
     try {
       // 简单加密处理（生产环境建议使用更强的加密）
-      const encrypted = btoa(encodeURIComponent(value));
+      const encrypted = base64Encode(value);
       Taro.setStorageSync(key, encrypted);
     } catch (error) {
       console.error("存储失败:", error);
@@ -74,7 +110,7 @@ const secureStorage = {
     try {
       const encrypted = Taro.getStorageSync(key);
       if (!encrypted) return null;
-      return decodeURIComponent(atob(encrypted));
+      return base64Decode(encrypted);
     } catch (error) {
       console.error("读取存储失败:", error);
       return null;
