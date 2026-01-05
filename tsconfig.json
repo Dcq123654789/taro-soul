@@ -19,9 +19,7 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "lib": ["ES2017", "DOM", "DOM.Iterable"],
-    "typeRoots": [
-      "node_modules/@types"
-    ],
+    "typeRoots": ["node_modules/@types"],
     "types": [],
     "paths": {
       "@/*": ["./src/*"]
