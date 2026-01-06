@@ -83,7 +83,6 @@ const base64Decode = (str: string): string => {
       return decodeURIComponent(atob(str));
     } catch (error) {
       // atob 解码失败，可能是备用方案编码的数据
-    
     }
   }
 
@@ -91,7 +90,7 @@ const base64Decode = (str: string): string => {
   try {
     return decodeURIComponent(str.replace(/_/g, "%"));
   } catch (error) {
-    console.error("备用方案解码也失败:", error);
+    // console.error("备用方案解码也失败:", error);
     // 如果都失败，返回原始字符串
     return str;
   }

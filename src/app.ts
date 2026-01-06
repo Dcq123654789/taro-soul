@@ -23,7 +23,7 @@ function App({ children }: PropsWithChildren<any>) {
       try {
         return decodeURIComponent(str.replace(/_/g, "%"));
       } catch (error) {
-        console.error("备用方案解码也失败:", error);
+       // console.error("备用方案解码也失败:", error);
         // 如果都失败，返回原始字符串
         return str;
       }

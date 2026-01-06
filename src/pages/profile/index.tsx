@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { View, Text, Image, ScrollView } from "@tarojs/components";
 import { useDidShow, usePullDownRefresh, useReachBottom } from "@tarojs/taro";
+import { Avatar } from "@nutui/nutui-react-taro";
+// 本地默认头像导入，使用项目别名 @ 指向 src 目录（见 config）
+import avatarImg from "@/assets/images/avatar.png";
 
 /**
  * 个人中心页面组件
@@ -9,9 +12,12 @@ import { useDidShow, usePullDownRefresh, useReachBottom } from "@tarojs/taro";
 const ProfilePage: React.FC = () => {
   // 页面状态管理
   const [scrollTop, setScrollTop] = useState(0);
+
   const [userInfo] = useState({
-    avatar: "https://via.placeholder.com/120x120/cccccc/ffffff?text=头像",
+    // 使用本地项目内的默认头像（通过 import 导入，构建器会处理静态资源）
+    avatar: avatarImg,
     nickname: "微信用户",
+    phone: "138****1234",
     wechatId: "wxid_123456789",
     memberLevel: "VIP",
     memberProgress: 75,
@@ -22,17 +28,14 @@ const ProfilePage: React.FC = () => {
 
   // 功能区数据
   const functionItems = [
-    { id: "favorites", icon: "star", title: "我的收藏", color: "#FF6B6B" },
     {
       id: "orders",
       icon: "shopping-cart",
-      title: "我的订单",
+      title: "订单列表",
       color: "#07C160",
     },
-    { id: "wallet", icon: "wallet", title: "我的钱包", color: "#FFC300" },
     { id: "address", icon: "location", title: "我的地址", color: "#FF6B6B" },
     { id: "service", icon: "service", title: "客服中心", color: "#07C160" },
-    { id: "settings", icon: "setting", title: "设置", color: "#333333" },
   ];
 
   // 工具列表数据
@@ -46,14 +49,14 @@ const ProfilePage: React.FC = () => {
     {
       id: "privacy",
       icon: "shield",
-      title: "隐私设置",
-      subtitle: "管理个人隐私权限",
+      title: "隐私政策",
+      subtitle: "查看隐私政策详情",
     },
     {
       id: "help",
       icon: "question-circle",
-      title: "帮助与反馈",
-      subtitle: "遇到问题？我们来帮您",
+      title: "用户协议",
+      subtitle: "查看用户协议条款",
     },
     {
       id: "about",
@@ -138,356 +141,68 @@ const ProfilePage: React.FC = () => {
         position: "relative",
       }}
     >
-      {/* 自定义导航栏区域 */}
-      <View
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "88rpx", // 状态栏 + 导航栏高度
-          background: "linear-gradient(135deg, #07C160 0%, #09D668 100%)",
-          zIndex: 100,
-          paddingTop: "44rpx", // 状态栏高度
-        }}
-      />
-
       {/* 主要内容区域 */}
       <ScrollView
         scrollY
         style={{
           height: "100vh",
-          paddingTop: "88rpx",
         }}
         onScroll={handleScroll}
         enableFlex
         scrollWithAnimation
       >
-        {/* 用户信息卡片区域 */}
+        {/* 人物信息展示区域 */}
         <View
           style={{
-            margin: "24rpx 24rpx 0",
-            transform: `scale(${getCardScale()})`,
-            transformOrigin: "center top",
-            transition: "transform 0.3s ease",
-          }}
-        >
-          <View
-            style={{
-              background: "rgba(255, 255, 255, 0.9)",
-              backdropFilter: "blur(20rpx)",
-              borderRadius: "24rpx",
-              padding: "40rpx",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            {/* 装饰背景 */}
-            <View
-              style={{
-                position: "absolute",
-                top: "-50rpx",
-                right: "-50rpx",
-                width: "200rpx",
-                height: "200rpx",
-                background:
-                  "radial-gradient(circle, rgba(7, 193, 96, 0.1) 0%, transparent 70%)",
-                borderRadius: "50%",
-              }}
-            />
-
-            {/* 用户头像和基本信息 */}
-            <View
-              style={{
-                display: "flex",
-                alignItems: "center",
-                marginBottom: "32rpx",
-              }}
-            >
-              <View
-                style={{
-                  position: "relative",
-                  marginRight: "24rpx",
-                }}
-              >
-                <Image
-                  src={userInfo.avatar}
-                  style={{
-                    width: "120rpx",
-                    height: "120rpx",
-                    borderRadius: "60rpx",
-                    border: "4rpx solid #FFFFFF",
-                  }}
-                />
-                <View
-                  style={{
-                    position: "absolute",
-                    bottom: "4rpx",
-                    right: "4rpx",
-                    width: "32rpx",
-                    height: "32rpx",
-                    backgroundColor: "#07C160",
-                    borderRadius: "16rpx",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ fontSize: "16rpx", color: "#FFFFFF" }}>✓</Text>
-                </View>
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: "34rpx",
-                    fontWeight: "600",
-                    color: "#333333",
-                    marginBottom: "8rpx",
-                    display: "block",
-                  }}
-                >
-                  {userInfo.nickname}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: "28rpx",
-                    color: "rgba(255, 255, 255, 0.9)",
-                    backgroundColor: "rgba(7, 193, 96, 0.1)",
-                    padding: "6rpx 12rpx",
-                    borderRadius: "12rpx",
-                  }}
-                >
-                  微信号: {userInfo.wechatId}
-                </Text>
-              </View>
-
-              {/* 编辑按钮 */}
-              <View
-                onClick={handleEditProfile}
-                style={{
-                  padding: "12rpx 16rpx",
-                  backgroundColor: "rgba(7, 193, 96, 0.1)",
-                  borderRadius: "16rpx",
-                  display: "flex",
-                  alignItems: "center",
-                  cursor: "pointer",
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: "26rpx",
-                    color: "#07C160",
-                    marginRight: "8rpx",
-                  }}
-                >
-                  编辑
-                </Text>
-                <Text style={{ fontSize: "20rpx", color: "#07C160" }}>›</Text>
-              </View>
-            </View>
-
-            {/* 会员等级展示区 */}
-            <View
-              onClick={handleMemberClick}
-              style={{
-                background: "linear-gradient(135deg, #FFC300 0%, #FF8C00 100%)",
-                borderRadius: "16rpx",
-                padding: "20rpx 24rpx",
-                display: "flex",
-                alignItems: "center",
-                cursor: "pointer",
-                marginBottom: "32rpx",
-              }}
-            >
-              <View
-                style={{
-                  width: "48rpx",
-                  height: "48rpx",
-                  backgroundColor: "rgba(255, 255, 255, 0.2)",
-                  borderRadius: "24rpx",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: "16rpx",
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: "24rpx",
-                    color: "#FFFFFF",
-                    fontWeight: "bold",
-                  }}
-                >
-                  👑
-                </Text>
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: "32rpx",
-                    fontWeight: "600",
-                    color: "#FFFFFF",
-                    marginBottom: "4rpx",
-                    display: "block",
-                  }}
-                >
-                  {userInfo.memberLevel}会员
-                </Text>
-                <View
-                  style={{
-                    width: "100%",
-                    height: "8rpx",
-                    backgroundColor: "rgba(255, 255, 255, 0.3)",
-                    borderRadius: "4rpx",
-                    overflow: "hidden",
-                  }}
-                >
-                  <View
-                    style={{
-                      width: `${userInfo.memberProgress}%`,
-                      height: "100%",
-                      backgroundColor: "#FFFFFF",
-                      borderRadius: "4rpx",
-                      transition: "width 0.3s ease",
-                    }}
-                  />
-                </View>
-                <Text
-                  style={{
-                    fontSize: "24rpx",
-                    color: "rgba(255, 255, 255, 0.8)",
-                    marginTop: "4rpx",
-                    display: "block",
-                  }}
-                >
-                  成长值 {userInfo.memberProgress}/100
-                </Text>
-              </View>
-
-              <Text style={{ fontSize: "28rpx", color: "#FFFFFF" }}>›</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 数据统计行 */}
-        <View
-          style={{
-            margin: "24rpx 24rpx 0",
+            margin: "24rpx",
             backgroundColor: "#FFFFFF",
             borderRadius: "16rpx",
-            padding: "32rpx 0",
-            display: "flex",
+            padding: "32rpx",
+            boxShadow: "0 4rpx 12rpx rgba(0, 0, 0, 0.1)",
           }}
         >
+          {/* 头像区域 */}
           <View
-            onClick={() => handleStatsClick("follow")}
             style={{
-              flex: 1,
-              textAlign: "center",
-              cursor: "pointer",
-              padding: "0 16rpx",
+              display: "flex",
+              alignItems: "center",
+              marginBottom: "24rpx",
             }}
           >
-            <Text
+            <Avatar
+              src={userInfo.avatar}
               style={{
-                fontSize: "48rpx",
-                fontWeight: "600",
-                color: "#333333",
-                display: "block",
-                marginBottom: "8rpx",
+                width: "140rpx",
+                height: "140rpx",
+                borderRadius: "70rpx",
+                marginRight: "24rpx",
               }}
-            >
-              {userInfo.followCount}
-            </Text>
-            <Text
-              style={{
-                fontSize: "26rpx",
-                color: "#999999",
-              }}
-            >
-              关注
-            </Text>
-          </View>
-
-          <View
-            style={{
-              width: "1rpx",
-              backgroundColor: "#F0F0F0",
-              margin: "16rpx 0",
-            }}
-          />
-
-          <View
-            onClick={() => handleStatsClick("fans")}
-            style={{
-              flex: 1,
-              textAlign: "center",
-              cursor: "pointer",
-              padding: "0 16rpx",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: "48rpx",
-                fontWeight: "600",
-                color: "#333333",
-                display: "block",
-                marginBottom: "8rpx",
-              }}
-            >
-              {userInfo.fansCount}
-            </Text>
-            <Text
-              style={{
-                fontSize: "26rpx",
-                color: "#999999",
-              }}
-            >
-              粉丝
-            </Text>
-          </View>
-
-          <View
-            style={{
-              width: "1rpx",
-              backgroundColor: "#F0F0F0",
-              margin: "16rpx 0",
-            }}
-          />
-
-          <View
-            onClick={() => handleStatsClick("like")}
-            style={{
-              flex: 1,
-              textAlign: "center",
-              cursor: "pointer",
-              padding: "0 16rpx",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: "48rpx",
-                fontWeight: "600",
-                color: "#333333",
-                display: "block",
-                marginBottom: "8rpx",
-              }}
-            >
-              {userInfo.likeCount}
-            </Text>
-            <Text
-              style={{
-                fontSize: "26rpx",
-                color: "#999999",
-              }}
-            >
-              获赞
-            </Text>
+            />
+            <View style={{ flex: 1 }}>
+              {/* 人物名称 */}
+              <Text
+                style={{
+                  fontSize: "36rpx",
+                  fontWeight: "600",
+                  color: "#333333",
+                  marginBottom: "8rpx",
+                  display: "block",
+                }}
+              >
+                {userInfo.nickname}
+              </Text>
+              {/* 人物电话 */}
+              <Text
+                style={{
+                  fontSize: "28rpx",
+                  color: "#666666",
+                }}
+              >
+                📞 {userInfo.phone}
+              </Text>
+            </View>
           </View>
         </View>
-
         {/* 功能区 - 宫格布局 */}
         <View
           style={{
@@ -553,7 +268,6 @@ const ProfilePage: React.FC = () => {
             ))}
           </View>
         </View>
-
         {/* 工具列表区 */}
         <View
           style={{
@@ -636,47 +350,6 @@ const ProfilePage: React.FC = () => {
               )}
             </View>
           ))}
-        </View>
-
-        {/* 底部操作区 */}
-        <View
-          style={{
-            margin: "24rpx 24rpx 40rpx",
-            paddingBottom: "env(safe-area-inset-bottom)",
-          }}
-        >
-          <View
-            onClick={handleLogout}
-            style={{
-              backgroundColor: "#FFFFFF",
-              borderRadius: "16rpx",
-              padding: "32rpx",
-              textAlign: "center",
-              cursor: "pointer",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: "32rpx",
-                color: "#FF6B6B",
-                fontWeight: "500",
-              }}
-            >
-              退出登录
-            </Text>
-          </View>
-
-          <Text
-            style={{
-              fontSize: "24rpx",
-              color: "#999999",
-              textAlign: "center",
-              display: "block",
-              marginTop: "16rpx",
-            }}
-          >
-            为了您的账号安全，请谨慎操作
-          </Text>
         </View>
       </ScrollView>
     </View>
