@@ -1,0 +1,94 @@
+import { View, Text } from "@tarojs/components";
+
+export default function ProfilePage() {
+  return (
+    <View
+      style={{
+        display: "flex",
+        height: "100vh",
+        flexDirection: "column",
+        backgroundColor: "blue",
+        position: "relative", // 添加相对定位作为按钮容器
+      }}
+    >
+      {/* 红色上半部分 - 底部弧形 */}
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "red",
+          clipPath:
+            "polygon(\n  0% 0%,\n  100% 0%,\n  100% 85%,\n  \n  /* 右侧浅弧线 */\n  92% 87%,\n  84% 89%,\n  76% 90.5%,\n  68% 91.5%,\n  60% 92%,\n  56% 92%,\n  53% 92%,\n  \n  50% 92%,    /* 中间点 */\n  \n  /* 左侧浅弧线 */\n  47% 92%,\n  44% 92%,\n  40% 92%,\n  32% 91.5%,\n  24% 90.5%,\n  16% 89%,\n  8% 87%,\n  \n  0% 85%\n)",
+          marginBottom: "-5%", // 与下半部分重叠
+          zIndex: 2,
+          position: "relative", // 添加相对定位作为Card容器
+        }}
+      >
+        <Text>P2rofilePage</Text>
+
+        {/* 浅白色卡片，底部被红色弧形覆盖 */}
+        <View
+          style={{
+            position: "absolute",
+            bottom: "-10px", // 让卡片底部稍微超出红色区域，被弧形覆盖
+            left: "10%",
+            right: "10%",
+            width: "80%",
+            backgroundColor: "#fafafa", // 浅白色背景
+            borderRadius: "12px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            zIndex: 3,
+            padding: "16px",
+          }}
+        >
+          <View style={{ textAlign: "center" }}>
+            <Text
+              style={{ fontSize: "16px", fontWeight: "bold", color: "#333" }}
+            >
+              卡片标题
+            </Text>
+            <Text style={{ fontSize: "14px", color: "#666", marginTop: "8px" }}>
+              这里是卡片内容，底部会被红色弧形覆盖
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* 跨越红蓝两区域的按钮 */}
+      <View
+        style={{
+          position: "absolute",
+          top: "33.33%", // 红色区域结束位置（1/3），按钮中心点在此处
+          left: "50%",
+          transform: "translate(-50%, -50%)", // 水平居中，垂直偏移-50%使按钮中心对齐top位置
+          zIndex: 10, // 确保按钮在最上层
+        }}
+      >
+        <Text
+          style={{
+            backgroundColor: "white",
+            color: "#333",
+            padding: "12px 24px",
+            borderRadius: "25px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
+            border: "2px solid #ddd",
+          }}
+        >
+          跨越按钮
+        </Text>
+      </View>
+
+      {/* 蓝色下半部分 - 顶部弧形 */}
+      <View
+        style={{
+          flex: 2,
+
+          zIndex: 1,
+        }}
+      >
+        <Text>ProfilePage12阿达3</Text>
+      </View>
+    </View>
+  );
+}

@@ -1,443 +1,686 @@
-import React from "react";
-import Taro from "@tarojs/taro";
-import { View, Text, Image } from "@tarojs/components";
-import { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
+import { View, Text, Image, ScrollView } from "@tarojs/components";
+import { useDidShow, usePullDownRefresh, useReachBottom } from "@tarojs/taro";
 
-const profileActions = [
-  {
-    title: "用户协议",
-    desc: "查看最新条款",
-    route: "/pages/profile/agreement/index",
-  },
-  {
-    title: "隐私政策",
-    desc: "管理隐私设置",
-    route: "/pages/profile/privacy/index",
-  },
-  // { title: "通知中心", desc: "选择消息提醒", route: "/pages/notify/index" },
-  // { title: "账号安全", desc: "重置密码与验证", route: "/pages/security/index" },
-  // {
-  //   title: "帮助与支持",
-  //   desc: "联系顾问或反馈",
-  //   route: "/pages/support/index",
-  // },
-];
+/**
+ * 个人中心页面组件
+ * 实现微信小程序个人中心页面，包含用户信息展示、会员等级、数据统计、功能区等完整功能
+ */
+const ProfilePage: React.FC = () => {
+  // 页面状态管理
+  const [scrollTop, setScrollTop] = useState(0);
+  const [userInfo] = useState({
+    avatar: "https://via.placeholder.com/120x120/cccccc/ffffff?text=头像",
+    nickname: "微信用户",
+    wechatId: "wxid_123456789",
+    memberLevel: "VIP",
+    memberProgress: 75,
+    followCount: 128,
+    fansCount: 256,
+    likeCount: 1024,
+  });
 
-// WorkshopUser数据类型定义
-interface WorkshopUser {
-  id: string;
-  openid: string;
-  nickname?: string;
-  avatarUrl?: string;
-  employeeNo?: string;
-  name?: string;
-  role?: string;
-  department?: string;
-  workshopId?: string;
-  workshopName?: string;
-  status?: string;
-  createTime?: string;
-  updateTime?: string;
-  // 新增字段以匹配API返回的数据结构
-  _id?: string;
-  tenantId?: string | null;
-  version?: number;
-  username?: string;
-  password?: string;
-  realName?: string | null;
-  gender?: string;
-  age?: number | null;
-  address?: string | null;
-  phone?: string | null;
-  enabled?: string;
-  avatar?: string;
-  remark?: string | null;
-  wxOpenid?: string;
-  wxUnionid?: string | null;
-  wxSessionKey?: string;
-  wxNickname?: string | null;
-  wxAvatarUrl?: string | null;
-  wxGender?: string | null;
-  wxCountry?: string | null;
-  wxProvince?: string | null;
-  wxCity?: string | null;
-  wxLanguage?: string | null;
-  wxIsDemote?: boolean | null;
-  wxLastLoginTime?: string;
-  new?: boolean;
-}
-
-export default function PersonalCenter() {
-  // 用户数据状态
-  const [userData, setUserData] = useState<WorkshopUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [avatarError, setAvatarError] = useState(false);
-
-  // URL构建工具函数
-  const buildApiUrl = useCallback((apiPath: string): string => {
-    const env = process.env.TARO_ENV;
-    const isMiniProgram = env !== "h5";
-
-    if (!isMiniProgram) {
-      // H5 环境：直接使用代理路径
-      return apiPath;
-    }
-
-    // 小程序环境：必须使用完整 URL
-    if (scope?.toAbsoluteUrl) {
-      return scope.toAbsoluteUrl(apiPath);
-    }
-
-    if (scope?.BASE_URL) {
-      return `${scope.BASE_URL}${apiPath}`;
-    }
-
-    console.error("无法构建API URL：scope未正确初始化");
-    return apiPath;
-  }, []);
-
-  // 查询WorkshopUser数据
-  const fetchUserData = useCallback(
-    async (openid: string) => {
-      try {
-        setLoading(true);
-        const apiBaseUrl = buildApiUrl("/");
-        const batchUrl = `${apiBaseUrl}api/batch`;
-        // 使用batch API查询WorkshopUser实体
-        const response = await scope?.requestWithLoadingAndPagination(
-          batchUrl,
-          {
-            entity: "workshop_user",
-            action: "query",
-            conditions: {
-              // 简单等于（保持兼容）
-              wxOpenid: openid,
-            },
-          },
-          {
-            method: "POST",
-            paramType: "body",
-          }
-        );
-
-        // 提取用户数据 - 新数据格式：response.data.content[0]
-        if (
-          response &&
-          response.data &&
-          response.data.content &&
-          response.data.content.length > 0
-        ) {
-          const rawUser = response.data.content[0];
-
-          // 字段映射：将API字段映射到组件期望的字段格式
-          const user: WorkshopUser = {
-            id: rawUser._id || rawUser.id || "",
-            openid: rawUser.wxOpenid || rawUser.openid || "",
-            nickname: rawUser.wxNickname || rawUser.username || "-用户",
-            avatarUrl:
-              rawUser.avatar ||
-              rawUser.wxAvatarUrl ||
-              "https://cdn.jsdelivr.net/gh/ihommani/assets/avatar-fabric.jpg",
-            employeeNo: rawUser.employeeNo || "",
-            name:
-              rawUser.realName || rawUser.name || rawUser.username || "-用户",
-            role: rawUser.role || "",
-            department: rawUser.department || "",
-            workshopId: rawUser.workshopId || "",
-            workshopName: rawUser.workshopName || "",
-            status: rawUser.status?.toString() || rawUser.enabled || "",
-            createTime: rawUser.createTime,
-            updateTime: rawUser.updateTime,
-            // 保留原始API字段
-            ...rawUser,
-          };
-
-          setUserData(user);
-          setAvatarError(false); // 重置头像错误状态
-        } else {
-          // 设置默认数据
-          setUserData({
-            id: "",
-            openid: openid,
-            nickname: "-用户",
-            avatarUrl:
-              "https://cdn.jsdelivr.net/gh/ihommani/assets/avatar-fabric.jpg",
-            employeeNo: "",
-            name: "-用户",
-            role: "",
-            department: "",
-            workshopId: "",
-            workshopName: "",
-            status: "",
-            _id: "",
-            wxOpenid: openid,
-          });
-        }
-      } catch (error) {
-        console.error("查询WorkshopUser数据失败:", error);
-        Taro.showToast({
-          title: "获取用户信息失败",
-          icon: "none",
-          duration: 2000,
-        });
-        // 设置默认数据
-        setUserData({
-          id: "",
-          openid: openid,
-          nickname: "-用户",
-          avatarUrl:
-            "https://cdn.jsdelivr.net/gh/ihommani/assets/avatar-fabric.jpg",
-          employeeNo: "",
-          name: "-用户",
-          role: "",
-          department: "",
-          workshopId: "",
-          workshopName: "",
-          status: "",
-          _id: "",
-          wxOpenid: openid,
-        });
-      } finally {
-        setLoading(false);
-      }
+  // 功能区数据
+  const functionItems = [
+    { id: "favorites", icon: "star", title: "我的收藏", color: "#FF6B6B" },
+    {
+      id: "orders",
+      icon: "shopping-cart",
+      title: "我的订单",
+      color: "#07C160",
     },
-    [buildApiUrl]
-  );
+    { id: "wallet", icon: "wallet", title: "我的钱包", color: "#FFC300" },
+    { id: "address", icon: "location", title: "我的地址", color: "#FF6B6B" },
+    { id: "service", icon: "service", title: "客服中心", color: "#07C160" },
+    { id: "settings", icon: "setting", title: "设置", color: "#333333" },
+  ];
 
-  // 组件挂载时获取用户数据
-  useEffect(() => {
-    const initUserData = async () => {
-      try {
-        // 获取保存的openid
-        const openid = Taro.getStorageSync("openid");
+  // 工具列表数据
+  const toolItems = [
+    {
+      id: "notifications",
+      icon: "bell",
+      title: "消息通知",
+      subtitle: "接收重要通知和提醒",
+    },
+    {
+      id: "privacy",
+      icon: "shield",
+      title: "隐私设置",
+      subtitle: "管理个人隐私权限",
+    },
+    {
+      id: "help",
+      icon: "question-circle",
+      title: "帮助与反馈",
+      subtitle: "遇到问题？我们来帮您",
+    },
+    {
+      id: "about",
+      icon: "info-circle",
+      title: "关于我们",
+      subtitle: "了解更多关于我们",
+    },
+  ];
 
-        if (!openid) {
-          console.warn("未找到保存的openid");
-          Taro.showToast({
-            title: "请先登录",
-            icon: "none",
-            duration: 2000,
-          });
-          // 跳转到登录页面
-          setTimeout(() => {
-            Taro.redirectTo({ url: "/pages/login/index" });
-          }, 2000);
-          return;
-        }
+  // 页面初始化
+  useDidShow(() => {
+    // 页面显示时的数据加载逻辑
+    console.log("个人中心页面显示");
+  });
 
-        // 根据openid查询WorkshopUser数据
-        await fetchUserData(openid);
-      } catch (error) {
-        console.error("初始化用户数据失败:", error);
-        setLoading(false);
-      }
-    };
+  // 下拉刷新处理
+  usePullDownRefresh(() => {
+    console.log("下拉刷新触发");
+    // 模拟数据刷新
+    setTimeout(() => {
+      console.log("数据刷新完成");
+    }, 1500);
+  });
 
-    initUserData();
-  }, [fetchUserData]);
+  // 滚动到底部处理
+  useReachBottom(() => {
+    console.log("滚动到底部");
+  });
 
-  // 显示用户名
-  const displayName = userData?.name || userData?.nickname || "-用户";
-  // 显示性别
-  const displayGender = userData?.gender || "-";
-  // 显示年龄
-  const displayAge = userData?.age ? `${userData.age}岁` : "-";
-  // 显示员工编号（不展示ID）
-  const displayEmployeeNo = userData?.employeeNo
-    ? `员工编号：${userData.employeeNo}`
-    : "员工编号：-";
-  // 显示头像 - 处理微信头像URL
-  const getDisplayAvatar = () => {
-    if (avatarError) {
-      return "https://cdn.jsdelivr.net/gh/ihommani/assets/avatar-fabric.jpg";
-    }
-
-    const avatarUrl = userData?.avatarUrl;
-    if (!avatarUrl) {
-      return "https://cdn.jsdelivr.net/gh/ihommani/assets/avatar-fabric.jpg";
-    }
-
-    // 检查是否为微信头像URL，如果是则添加时间戳防止缓存问题
-    if (
-      avatarUrl.includes("thirdwx.qlogo.cn") ||
-      avatarUrl.includes("wx.qlogo.cn")
-    ) {
-      const timestamp = Date.now();
-      return `${avatarUrl}${avatarUrl.includes("?") ? "&" : "?"}t=${timestamp}`;
-    }
-
-    return avatarUrl;
+  // 处理滚动事件
+  const handleScroll = (e: any) => {
+    setScrollTop(e.detail.scrollTop);
   };
 
-  const displayAvatar = getDisplayAvatar();
+  // 处理功能点击
+  const handleFunctionClick = (itemId: string) => {
+    console.log(`点击功能: ${itemId}`);
+    // 根据itemId跳转到对应页面
+  };
 
-  // 显示加载状态
-  if (loading) {
-    return (
-      <View
-        style={{
-          minHeight: "100vh",
-          backgroundColor: "#F8FAFC",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ color: "#94A3B8", fontSize: "14px" }}>加载中...</Text>
-      </View>
-    );
-  }
+  // 处理工具项点击
+  const handleToolClick = (itemId: string) => {
+    console.log(`点击工具: ${itemId}`);
+    // 根据itemId跳转到对应页面
+  };
+
+  // 处理编辑资料点击
+  const handleEditProfile = () => {
+    console.log("编辑资料");
+  };
+
+  // 处理会员等级点击
+  const handleMemberClick = () => {
+    console.log("会员详情");
+  };
+
+  // 处理数据统计点击
+  const handleStatsClick = (type: "follow" | "fans" | "like") => {
+    console.log(`点击统计: ${type}`);
+  };
+
+  // 处理退出登录
+  const handleLogout = () => {
+    console.log("退出登录");
+  };
+
+  // 计算用户信息卡片的缩放比例
+  const getCardScale = () => {
+    const maxScale = 1;
+    const minScale = 0.95;
+    const scaleRange = maxScale - minScale;
+    const scrollThreshold = 200;
+    const progress = Math.min(scrollTop / scrollThreshold, 1);
+    return maxScale - scaleRange * progress;
+  };
 
   return (
     <View
       style={{
         minHeight: "100vh",
-        backgroundColor: "#F8FAFC",
-        padding: "20px 16px 32px",
-        boxSizing: "border-box",
+        backgroundColor: "#F5F5F5",
+        position: "relative",
       }}
     >
+      {/* 自定义导航栏区域 */}
       <View
         style={{
-          backgroundColor: "#FFFFFF",
-          borderRadius: "20px",
-          padding: "20px",
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          marginBottom: "20px",
-          boxShadow: "0 18px 36px rgba(15,23,42,0.08)",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "88rpx", // 状态栏 + 导航栏高度
+          background: "linear-gradient(135deg, #07C160 0%, #09D668 100%)",
+          zIndex: 100,
+          paddingTop: "44rpx", // 状态栏高度
         }}
-        onClick={() => {
-          Taro.navigateTo({
-            url: "/pages/profile/personal-info/index",
-            fail: (error) => {
-              console.error("跳转个人信息页面失败:", error);
-              Taro.showToast({
-                title: "页面跳转失败",
-                icon: "error",
-                duration: 2000,
-              });
-            },
-          });
-        }}
-        hoverClass="page-hover"
-      >
-        <Image
-          src={displayAvatar}
-          style={{
-            width: "72px",
-            height: "72px",
-            borderRadius: "18px",
-            marginRight: "16px",
-          }}
-          onError={(e) => {
-            setAvatarError(true);
-          }}
-          onLoad={() => {
-            // 头像加载成功时重置错误状态
-            setAvatarError(false);
-          }}
-          mode="aspectFill"
-        />
-        <View>
-          <Text
-            style={{ fontSize: "18px", fontWeight: "700", color: "#0F172A" }}
-          >
-            {displayName}
-          </Text>
-          <Text
-            style={{
-              display: "block",
-              marginTop: "6px",
-              fontSize: "12px",
-              color: "#94A3B8",
-            }}
-          >
-            性别：{displayGender} | 年龄：{displayAge}
-          </Text>
-          <Text
-            style={{
-              display: "block",
-              marginTop: "4px",
-              fontSize: "12px",
-              color: "#64748B",
-            }}
-          >
-            {displayEmployeeNo}
-          </Text>
-          {userData?.workshopName && (
-            <Text
-              style={{
-                display: "block",
-                marginTop: "4px",
-                fontSize: "12px",
-                color: "#64748B",
-              }}
-            >
-              {userData.workshopName}
-            </Text>
-          )}
-        </View>
-      </View>
+      />
 
-      <View>
-        {profileActions.map((action, idx) => (
+      {/* 主要内容区域 */}
+      <ScrollView
+        scrollY
+        style={{
+          height: "100vh",
+          paddingTop: "88rpx",
+        }}
+        onScroll={handleScroll}
+        enableFlex
+        scrollWithAnimation
+      >
+        {/* 用户信息卡片区域 */}
+        <View
+          style={{
+            margin: "24rpx 24rpx 0",
+            transform: `scale(${getCardScale()})`,
+            transformOrigin: "center top",
+            transition: "transform 0.3s ease",
+          }}
+        >
           <View
-            key={action.title}
             style={{
-              marginBottom: idx === profileActions.length - 1 ? "0" : "12px",
-              backgroundColor: "#FFFFFF",
-              borderRadius: "16px",
-              padding: "16px 18px",
-              boxShadow: "0 12px 26px rgba(15,23,42,0.06)",
-            }}
-            hoverClass="page-hover"
-            onClick={() => {
-              if (!action.route) return;
-              Taro.navigateTo({ url: action.route });
+              background: "rgba(255, 255, 255, 0.9)",
+              backdropFilter: "blur(20rpx)",
+              borderRadius: "24rpx",
+              padding: "40rpx",
+              position: "relative",
+              overflow: "hidden",
             }}
           >
+            {/* 装饰背景 */}
+            <View
+              style={{
+                position: "absolute",
+                top: "-50rpx",
+                right: "-50rpx",
+                width: "200rpx",
+                height: "200rpx",
+                background:
+                  "radial-gradient(circle, rgba(7, 193, 96, 0.1) 0%, transparent 70%)",
+                borderRadius: "50%",
+              }}
+            />
+
+            {/* 用户头像和基本信息 */}
             <View
               style={{
                 display: "flex",
-                flexDirection: "row",
-                justifyContent: "space-between",
                 alignItems: "center",
+                marginBottom: "32rpx",
               }}
             >
-              <View>
-                <Text
+              <View
+                style={{
+                  position: "relative",
+                  marginRight: "24rpx",
+                }}
+              >
+                <Image
+                  src={userInfo.avatar}
                   style={{
-                    fontSize: "15px",
-                    fontWeight: "600",
-                    color: "#0F172A",
+                    width: "120rpx",
+                    height: "120rpx",
+                    borderRadius: "60rpx",
+                    border: "4rpx solid #FFFFFF",
+                  }}
+                />
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: "4rpx",
+                    right: "4rpx",
+                    width: "32rpx",
+                    height: "32rpx",
+                    backgroundColor: "#07C160",
+                    borderRadius: "16rpx",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  {action.title}
+                  <Text style={{ fontSize: "16rpx", color: "#FFFFFF" }}>✓</Text>
+                </View>
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: "34rpx",
+                    fontWeight: "600",
+                    color: "#333333",
+                    marginBottom: "8rpx",
+                    display: "block",
+                  }}
+                >
+                  {userInfo.nickname}
                 </Text>
                 <Text
                   style={{
-                    display: "block",
-                    marginTop: "6px",
-                    fontSize: "12px",
-                    color: "#94A3B8",
+                    fontSize: "28rpx",
+                    color: "rgba(255, 255, 255, 0.9)",
+                    backgroundColor: "rgba(7, 193, 96, 0.1)",
+                    padding: "6rpx 12rpx",
+                    borderRadius: "12rpx",
                   }}
                 >
-                  {action.desc}
+                  微信号: {userInfo.wechatId}
                 </Text>
               </View>
-              <Text style={{ fontSize: "18px", color: "#CBD5F5" }}>›</Text>
+
+              {/* 编辑按钮 */}
+              <View
+                onClick={handleEditProfile}
+                style={{
+                  padding: "12rpx 16rpx",
+                  backgroundColor: "rgba(7, 193, 96, 0.1)",
+                  borderRadius: "16rpx",
+                  display: "flex",
+                  alignItems: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: "26rpx",
+                    color: "#07C160",
+                    marginRight: "8rpx",
+                  }}
+                >
+                  编辑
+                </Text>
+                <Text style={{ fontSize: "20rpx", color: "#07C160" }}>›</Text>
+              </View>
+            </View>
+
+            {/* 会员等级展示区 */}
+            <View
+              onClick={handleMemberClick}
+              style={{
+                background: "linear-gradient(135deg, #FFC300 0%, #FF8C00 100%)",
+                borderRadius: "16rpx",
+                padding: "20rpx 24rpx",
+                display: "flex",
+                alignItems: "center",
+                cursor: "pointer",
+                marginBottom: "32rpx",
+              }}
+            >
+              <View
+                style={{
+                  width: "48rpx",
+                  height: "48rpx",
+                  backgroundColor: "rgba(255, 255, 255, 0.2)",
+                  borderRadius: "24rpx",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: "16rpx",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: "24rpx",
+                    color: "#FFFFFF",
+                    fontWeight: "bold",
+                  }}
+                >
+                  👑
+                </Text>
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: "32rpx",
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                    marginBottom: "4rpx",
+                    display: "block",
+                  }}
+                >
+                  {userInfo.memberLevel}会员
+                </Text>
+                <View
+                  style={{
+                    width: "100%",
+                    height: "8rpx",
+                    backgroundColor: "rgba(255, 255, 255, 0.3)",
+                    borderRadius: "4rpx",
+                    overflow: "hidden",
+                  }}
+                >
+                  <View
+                    style={{
+                      width: `${userInfo.memberProgress}%`,
+                      height: "100%",
+                      backgroundColor: "#FFFFFF",
+                      borderRadius: "4rpx",
+                      transition: "width 0.3s ease",
+                    }}
+                  />
+                </View>
+                <Text
+                  style={{
+                    fontSize: "24rpx",
+                    color: "rgba(255, 255, 255, 0.8)",
+                    marginTop: "4rpx",
+                    display: "block",
+                  }}
+                >
+                  成长值 {userInfo.memberProgress}/100
+                </Text>
+              </View>
+
+              <Text style={{ fontSize: "28rpx", color: "#FFFFFF" }}>›</Text>
             </View>
           </View>
-        ))}
-      </View>
+        </View>
+
+        {/* 数据统计行 */}
+        <View
+          style={{
+            margin: "24rpx 24rpx 0",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "16rpx",
+            padding: "32rpx 0",
+            display: "flex",
+          }}
+        >
+          <View
+            onClick={() => handleStatsClick("follow")}
+            style={{
+              flex: 1,
+              textAlign: "center",
+              cursor: "pointer",
+              padding: "0 16rpx",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: "48rpx",
+                fontWeight: "600",
+                color: "#333333",
+                display: "block",
+                marginBottom: "8rpx",
+              }}
+            >
+              {userInfo.followCount}
+            </Text>
+            <Text
+              style={{
+                fontSize: "26rpx",
+                color: "#999999",
+              }}
+            >
+              关注
+            </Text>
+          </View>
+
+          <View
+            style={{
+              width: "1rpx",
+              backgroundColor: "#F0F0F0",
+              margin: "16rpx 0",
+            }}
+          />
+
+          <View
+            onClick={() => handleStatsClick("fans")}
+            style={{
+              flex: 1,
+              textAlign: "center",
+              cursor: "pointer",
+              padding: "0 16rpx",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: "48rpx",
+                fontWeight: "600",
+                color: "#333333",
+                display: "block",
+                marginBottom: "8rpx",
+              }}
+            >
+              {userInfo.fansCount}
+            </Text>
+            <Text
+              style={{
+                fontSize: "26rpx",
+                color: "#999999",
+              }}
+            >
+              粉丝
+            </Text>
+          </View>
+
+          <View
+            style={{
+              width: "1rpx",
+              backgroundColor: "#F0F0F0",
+              margin: "16rpx 0",
+            }}
+          />
+
+          <View
+            onClick={() => handleStatsClick("like")}
+            style={{
+              flex: 1,
+              textAlign: "center",
+              cursor: "pointer",
+              padding: "0 16rpx",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: "48rpx",
+                fontWeight: "600",
+                color: "#333333",
+                display: "block",
+                marginBottom: "8rpx",
+              }}
+            >
+              {userInfo.likeCount}
+            </Text>
+            <Text
+              style={{
+                fontSize: "26rpx",
+                color: "#999999",
+              }}
+            >
+              获赞
+            </Text>
+          </View>
+        </View>
+
+        {/* 功能区 - 宫格布局 */}
+        <View
+          style={{
+            margin: "24rpx 24rpx 0",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "16rpx",
+            padding: "32rpx 24rpx",
+          }}
+        >
+          <View
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "32rpx",
+            }}
+          >
+            {functionItems.map((item) => (
+              <View
+                key={item.id}
+                onClick={() => handleFunctionClick(item.id)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  cursor: "pointer",
+                  padding: "16rpx",
+                  borderRadius: "12rpx",
+                  transition: "transform 0.2s ease",
+                }}
+              >
+                <View
+                  style={{
+                    width: "88rpx",
+                    height: "88rpx",
+                    backgroundColor: `${item.color}20`,
+                    borderRadius: "44rpx",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: "12rpx",
+                    boxShadow: "0 4rpx 12rpx rgba(0, 0, 0, 0.1)",
+                  }}
+                >
+                  <Text style={{ fontSize: "36rpx" }}>
+                    {item.icon === "star" && "⭐"}
+                    {item.icon === "shopping-cart" && "🛒"}
+                    {item.icon === "wallet" && "💰"}
+                    {item.icon === "location" && "📍"}
+                    {item.icon === "service" && "💬"}
+                    {item.icon === "setting" && "⚙️"}
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontSize: "26rpx",
+                    color: "#333333",
+                    textAlign: "center",
+                  }}
+                >
+                  {item.title}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* 工具列表区 */}
+        <View
+          style={{
+            margin: "24rpx 24rpx 0",
+            backgroundColor: "#FFFFFF",
+            borderRadius: "16rpx",
+          }}
+        >
+          {toolItems.map((item, index) => (
+            <View key={item.id}>
+              <View
+                onClick={() => handleToolClick(item.id)}
+                style={{
+                  padding: "24rpx 32rpx",
+                  display: "flex",
+                  alignItems: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <View
+                  style={{
+                    width: "48rpx",
+                    height: "48rpx",
+                    backgroundColor: "#F5F5F5",
+                    borderRadius: "24rpx",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginRight: "20rpx",
+                  }}
+                >
+                  <Text style={{ fontSize: "24rpx" }}>
+                    {item.icon === "bell" && "🔔"}
+                    {item.icon === "shield" && "🛡️"}
+                    {item.icon === "question-circle" && "❓"}
+                    {item.icon === "info-circle" && "ℹ️"}
+                  </Text>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: "32rpx",
+                      fontWeight: "500",
+                      color: "#333333",
+                      marginBottom: "4rpx",
+                      display: "block",
+                    }}
+                  >
+                    {item.title}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: "26rpx",
+                      color: "#999999",
+                    }}
+                  >
+                    {item.subtitle}
+                  </Text>
+                </View>
+
+                <Text
+                  style={{
+                    fontSize: "28rpx",
+                    color: "#CCCCCC",
+                  }}
+                >
+                  ›
+                </Text>
+              </View>
+
+              {index < toolItems.length - 1 && (
+                <View
+                  style={{
+                    height: "1rpx",
+                    backgroundColor: "#F0F0F0",
+                    marginLeft: "100rpx",
+                  }}
+                />
+              )}
+            </View>
+          ))}
+        </View>
+
+        {/* 底部操作区 */}
+        <View
+          style={{
+            margin: "24rpx 24rpx 40rpx",
+            paddingBottom: "env(safe-area-inset-bottom)",
+          }}
+        >
+          <View
+            onClick={handleLogout}
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderRadius: "16rpx",
+              padding: "32rpx",
+              textAlign: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: "32rpx",
+                color: "#FF6B6B",
+                fontWeight: "500",
+              }}
+            >
+              退出登录
+            </Text>
+          </View>
+
+          <Text
+            style={{
+              fontSize: "24rpx",
+              color: "#999999",
+              textAlign: "center",
+              display: "block",
+              marginTop: "16rpx",
+            }}
+          >
+            为了您的账号安全，请谨慎操作
+          </Text>
+        </View>
+      </ScrollView>
     </View>
   );
-}
+};
 
-/*
-生成逻辑：根据保存的openid查询WorkshopUser实体获取用户数据，适配新的API数据格式(response.data.content[0])，包含用户基本信息、性别、年龄、员工编号、车间信息等。
-依赖技术：React Hooks(useState, useEffect, useCallback)、Taro Storage API、scope工具类、batch API查询、Taro Image组件。
-原理：组件挂载时从本地存储获取openid，通过batch API查询workshop_user实体，对API返回数据进行字段映射，更新UI显示头像、名称、性别、年龄等用户信息，不展示ID。头像加载失败时自动降级到默认头像。
-*/
+export default ProfilePage;
