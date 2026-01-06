@@ -45,7 +45,6 @@ const base64Decode = (str: string): string => {
       return decodeURIComponent(atob(str));
     } catch (error) {
       // atob 解码失败，可能是备用方案编码的数据
-      console.warn("atob 解码失败，尝试备用方案:", error);
     }
   }
 

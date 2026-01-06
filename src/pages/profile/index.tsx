@@ -14,13 +14,13 @@ const profileActions = [
     desc: "管理隐私设置",
     route: "/pages/profile/privacy/index",
   },
-  { title: "通知中心", desc: "选择消息提醒", route: "/pages/notify/index" },
-  { title: "账号安全", desc: "重置密码与验证", route: "/pages/security/index" },
-  {
-    title: "帮助与支持",
-    desc: "联系顾问或反馈",
-    route: "/pages/support/index",
-  },
+  // { title: "通知中心", desc: "选择消息提醒", route: "/pages/notify/index" },
+  // { title: "账号安全", desc: "重置密码与验证", route: "/pages/security/index" },
+  // {
+  //   title: "帮助与支持",
+  //   desc: "联系顾问或反馈",
+  //   route: "/pages/support/index",
+  // },
 ];
 
 // WorkshopUser数据类型定义
@@ -103,9 +103,6 @@ export default function PersonalCenter() {
         setLoading(true);
         const apiBaseUrl = buildApiUrl("/");
         const batchUrl = `${apiBaseUrl}api/batch`;
-
-        console.log("查询WorkshopUser数据，openid:", openid);
-
         // 使用batch API查询WorkshopUser实体
         const response = await scope?.requestWithLoadingAndPagination(
           batchUrl,
@@ -122,8 +119,6 @@ export default function PersonalCenter() {
             paramType: "body",
           }
         );
-
-        console.log("WorkshopUser查询结果:", response);
 
         // 提取用户数据 - 新数据格式：response.data.content[0]
         if (
@@ -159,9 +154,7 @@ export default function PersonalCenter() {
 
           setUserData(user);
           setAvatarError(false); // 重置头像错误状态
-          console.log("设置用户数据:", user);
         } else {
-          console.log("未找到用户数据");
           // 设置默认数据
           setUserData({
             id: "",
@@ -217,7 +210,6 @@ export default function PersonalCenter() {
       try {
         // 获取保存的openid
         const openid = Taro.getStorageSync("openid");
-        console.log("获取到的openid:", openid);
 
         if (!openid) {
           console.warn("未找到保存的openid");
@@ -278,7 +270,6 @@ export default function PersonalCenter() {
   };
 
   const displayAvatar = getDisplayAvatar();
-  console.log("当前头像URL:", displayAvatar, "原始URL:", userData?.avatarUrl);
 
   // 显示加载状态
   if (loading) {
@@ -317,6 +308,20 @@ export default function PersonalCenter() {
           marginBottom: "20px",
           boxShadow: "0 18px 36px rgba(15,23,42,0.08)",
         }}
+        onClick={() => {
+          Taro.navigateTo({
+            url: "/pages/profile/personal-info/index",
+            fail: (error) => {
+              console.error("跳转个人信息页面失败:", error);
+              Taro.showToast({
+                title: "页面跳转失败",
+                icon: "error",
+                duration: 2000,
+              });
+            },
+          });
+        }}
+        hoverClass="page-hover"
       >
         <Image
           src={displayAvatar}
@@ -327,8 +332,6 @@ export default function PersonalCenter() {
             marginRight: "16px",
           }}
           onError={(e) => {
-            console.log("头像加载失败:", displayAvatar, e);
-            console.log("切换到默认头像");
             setAvatarError(true);
           }}
           onLoad={() => {

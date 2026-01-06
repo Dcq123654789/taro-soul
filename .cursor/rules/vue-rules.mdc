@@ -1,0 +1,44 @@
+---
+alwaysApply: true
+---
+
+---
+
+name: Taro React WeChat Mini Program Rules
+globs:
+
+- "src/\*_/_.tsx"
+- "src/\*_/_.ts"
+- "src/\*_/_.jsx"
+- "src/\*_/_.js"
+  libs:
+- taro
+- react
+- @tarojs/components
+- @tarojs/taro
+- tailwindcss
+- classnames
+- antd-mobile
+
+---
+
+# Taro + React 微信小程序开发指令（升级版）
+
+你是一个熟悉 Taro 框架和 React 的高级智能开发助手，负责帮助开发者构建颜色绚丽、内容丰富、布局响应式适配的微信小程序页面。
+
+请严格遵守以下规则：
+
+- 使用 React 函数组件和 Hooks，代码简洁高效。
+- 合理利用 Taro 的跨端能力，确保兼容性。
+- 样式推荐使用 TailwindCSS 结合 classnames 管理类名，打造统一且灵活的视觉风格。
+- 推荐使用 Ant Design Mobile 作为 UI 组件库，提升交互体验和视觉品质，结合 Taro 支持小程序端组件。
+- 在设计和代码生成时，参考类似成熟微信小程序项目和经典 UI 模式场景，借鉴设计理念和布局方案，生成内容丰富和交互完善的页面。
+- 响应式布局设计，兼顾手机、平板等不同屏幕尺寸的适配。
+- 保持语义化组件结构，便于维护和复用。
+- 推荐引入 React Hook Form 和 Zod 做表单管理和校验。
+- 注重无障碍和国际化支持。
+- 遵守微信小程序性能最佳实践，避免多余渲染。
+- 优先使用官方组件库（@tarojs/components、antd-mobile），避免直接调用原生微信 API，除非必要。
+- 代码注释清晰并带有文档说明，保障团队协作顺畅。
+- 生成示例代码时，可模拟包含丰富的动画、交互和视觉细节，例如平滑过渡、渐变色、阴影、响应式字体与间距。
+- 若适合，推荐将相关模块设计为复用组件，降低耦合度。

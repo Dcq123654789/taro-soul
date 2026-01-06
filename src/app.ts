@@ -8,21 +8,6 @@ import "@nutui/nutui-react-taro/dist/style.css";
 function App({ children }: PropsWithChildren<any>) {
   useLaunch(() => {
     const scopeRef = (globalThis as any)?.scope;
-    // Base64 编码/解码辅助函数（兼容小程序环境）
-    const base64Encode = (str: string): string => {
-      try {
-        // 小程序环境兼容处理
-        if (typeof btoa !== "undefined") {
-          return btoa(encodeURIComponent(str));
-        }
-        // 备用方案：使用简单的字符替换（生产环境应使用更安全的加密）
-        return encodeURIComponent(str).replace(/%/g, "_");
-      } catch (error) {
-        console.error("Base64 编码失败:", error);
-        return str;
-      }
-    };
-
     const base64Decode = (str: string): string => {
       // 首先尝试用 atob 解码（标准 base64）
       if (typeof atob !== "undefined") {
@@ -30,7 +15,7 @@ function App({ children }: PropsWithChildren<any>) {
           return decodeURIComponent(atob(str));
         } catch (error) {
           // atob 解码失败，可能是备用方案编码的数据
-          console.warn("atob 解码失败，尝试备用方案:", error);
+          // console.warn("atob 解码失败，尝试备用方案:", error);
         }
       }
 
@@ -43,18 +28,8 @@ function App({ children }: PropsWithChildren<any>) {
         return str;
       }
     };
-
+    //读取本地存储的token和openid
     const secureStorage = {
-      set: (key: string, value: string) => {
-        try {
-          // 简单加密处理（生产环境建议使用更强的加密）
-          const encrypted = base64Encode(value);
-          Taro.setStorageSync(key, encrypted);
-        } catch (error) {
-          console.error("存储失败:", error);
-        }
-      },
-
       get: (key: string): string | null => {
         try {
           const encrypted = Taro.getStorageSync(key);
@@ -67,9 +42,6 @@ function App({ children }: PropsWithChildren<any>) {
       },
     };
 
-    if (!scopeRef) {
-      console.warn("全局 scope 未挂载，请检查 utils/scope 初始化逻辑");
-    }
     // 根据环境配置 BASE_URL
     // H5 环境：使用代理，不需要配置 BASE_URL
     // 小程序环境：需要配置完整 URL（代理不生效）
@@ -109,34 +81,17 @@ function App({ children }: PropsWithChildren<any>) {
     // 检查 token 有效性
     const token = secureStorage.get("token");
     const tokenExpireTime = Taro.getStorageSync("tokenExpireTime");
+    console.log(token, tokenExpireTime, "token, tokenExpireTime");
+
     const now = Date.now();
 
     let isTokenValid = false;
-    console.log(123, token, tokenExpireTime);
-
     if (token && tokenExpireTime && now < tokenExpireTime) {
       // token 存在且未过期
       isTokenValid = true;
-
-      // 同步 token 到全局 scope
-      scopeRef?.setTemporaryData?.("token", token);
-
-      // 同步 openid 和 userInfo（如果存在）
-      const openid = Taro.getStorageSync("openid");
-      const userInfo = Taro.getStorageSync("userInfo");
-
-      if (openid) {
-        scopeRef?.setTemporaryData?.("openid", openid);
-      }
-
-      if (userInfo) {
-        scopeRef?.setTemporaryData?.("userInfo", userInfo);
-      }
-
-      console.log("[App] token 验证通过，自动登录");
     } else {
       // token 不存在或已过期，清除过期数据
-      if (token || tokenExpireTime) {
+      if (token || (tokenExpireTime && tokenExpireTime > now)) {
         Taro.removeStorageSync("token");
         Taro.removeStorageSync("tokenExpireTime");
         Taro.removeStorageSync("openid");
@@ -150,27 +105,73 @@ function App({ children }: PropsWithChildren<any>) {
       ? "/pages/index/index"
       : "/pages/login/index";
 
+    // 根据登录状态决定跳转页面
     if (isTokenValid) {
       // 已登录用户跳转到 tabBar 页面
-      Taro.switchTab({
-        url: targetUrl,
-        success: () => {
-          // 在 tabBar 页面加载成功后设置样式
-          setTimeout(() => {
-            Taro.setTabBarStyle({
-              color: "#666666",
-              selectedColor: "#07C160",
-              backgroundColor: "#ffffff",
-              borderStyle: "black",
-              // fontSize: "14px", // 设置字体大小
-            });
-          }, 100); // 稍微延时确保 tabBar 完全初始化
-        },
-      });
+      const trySwitchTab = (retries = 3) => {
+        console.log(`尝试 switchTab (剩余重试次数: ${retries})`);
+        Taro.switchTab({
+          url: "/pages/index/index",
+          success: () => {
+            console.log("✅ switchTab 成功");
+            // 延迟设置样式，确保页面已完全加载
+            setTimeout(() => {
+              Taro.setTabBarStyle({
+                color: "#666666",
+                selectedColor: "#07C160",
+                backgroundColor: "#ffffff",
+                borderStyle: "black",
+              });
+            }, 300);
+          },
+          fail: (error) => {
+            console.error(
+              `❌ switchTab 失败 (剩余重试次数: ${retries - 1}):`,
+              error
+            );
+
+            if (retries > 1) {
+              // 递增延迟后重试，避免频繁重试
+              const delay = 500 * (4 - retries); // 1500ms, 1000ms, 500ms
+              console.log(`等待 ${delay}ms 后重试...`);
+              setTimeout(() => trySwitchTab(retries - 1), delay);
+            } else {
+              console.warn(
+                "⚠️ switchTab 多次重试失败，使用 reLaunch 作为最终方案"
+              );
+              // 最后的备用方案：使用 reLaunch (可以跳转到 tabBar 页面)
+              Taro.reLaunch({
+                url: "/pages/index/index",
+                success: () => console.log("✅ reLaunch 成功"),
+                fail: (finalError) => {
+                  console.error("🚫 所有跳转方式都失败:", finalError);
+                  // 如果实在跳转不了，至少要有个提示
+                  Taro.showToast({
+                    title: "页面加载失败，请重启应用",
+                    icon: "none",
+                    duration: 3000,
+                  });
+                },
+              });
+            }
+          },
+        });
+      };
+
+      // 初始延迟后开始尝试，避免与其他初始化冲突
+      setTimeout(() => trySwitchTab(), 200);
     } else {
       // 未登录用户跳转到登录页面（非 tabBar 页面）
+      console.log("跳转到登录页面:", targetUrl);
       Taro.redirectTo({
         url: targetUrl,
+        fail: (error) => {
+          console.error("跳转登录页面失败:", error);
+          // 最后的最后备用方案
+          Taro.reLaunch({
+            url: targetUrl,
+          });
+        },
       });
     }
   });
