@@ -52,7 +52,7 @@ const base64Decode = (str: string): string => {
   try {
     return decodeURIComponent(str.replace(/_/g, "%"));
   } catch (error) {
-    console.error("备用方案解码也失败:", error);
+    //console.error("备用方案解码也失败:", error);
     // 如果都失败，返回原始字符串
     return str;
   }
@@ -198,36 +198,6 @@ const http = {
 // ===================== 全局常量 =====================
 /** 主题主色 */
 const themeColor = "#F08300";
-/** 主题副色 */
-const themeFRColor = "#7294E5";
-/** 主题背景色 */
-const themeBGColor = "#284895F9";
-/** H5 主题背景色 */
-const themeH5BGColor = "#F6F9FF";
-/** 颜色列表（用于图表等） */
-const colors = [
-  "#6f81da",
-  "#deb140",
-  "#49dff0",
-  "#034079",
-  "#00ffb4",
-  "#c487ee",
-  "#dd6b66",
-  "#759aa0",
-  "#e69d87",
-  "#8dc1a9",
-  "#ea7e53",
-  "#eedd78",
-  "#73a373",
-  "#73b9bc",
-  "#7289ab",
-  "#91ca8c",
-  "#f49f42",
-];
-/** 高德地图 key */
-const amap_key = "462f5e65fa9453be367770b9d70990ea";
-/** 腾讯地图 key */
-const qmap_key = "KNLBZ-EDNCS-SGNOR-6PNPQ-WVMHH-4AF62";
 
 // ===================== 全局 session 配置 =====================
 const session = {
@@ -246,76 +216,41 @@ const session = {
   app_service_base_url: "http://localhost:8888",
 };
 
-// ===================== 全局事件管理 =====================
-/** 全局事件对象 */
-const events: Record<string, Function> = {};
-/** 注册事件 */
-function setEvent(event: string, fn: Function) {
-  events[event] = fn;
-}
-/** 触发事件 */
-function fireEvent(event: string, data?: any) {
-  events[event]?.(data);
-}
-/** 移除事件 */
-function removeEvent(event: string) {
-  delete events[event];
-}
-
 // ===================== 全局消息/弹窗/通知 =====================
-/** 全局消息提示 */
-const showInfo = (title: string, duration = 2000) =>
-  Taro.showToast({ title, icon: "none", duration });
-/** 全局错误提示 */
-const showError = (title: string, duration = 2000) =>
-  Taro.showToast({ title, icon: "error", duration });
 /** 全局加载提示 */
 const showLoading = (title = "加载中...") =>
   Taro.showLoading({ title, mask: true });
-/** 全局通知（统一为无取消的 Modal） */
-const showNotification = (title: string, content?: string) =>
-  Taro.showModal({ title, content: content || "", showCancel: false });
-/** 全局确认弹窗 */
-const showConfirm = (
-  title: string,
-  onOk?: () => void,
-  onCancel?: () => void,
-  content?: string
-) => {
-  Taro.showModal({ title, content: content || "" }).then((res) => {
-    if (res.confirm) onOk?.();
-    else onCancel?.();
-  });
-};
+/** 全局错误提示 */
+const showError = (title: string, duration = 2000) =>
+  Taro.showToast({ title, icon: "error", duration });
 /** 关闭加载提示 */
 const hideLoading = () => Taro.hideLoading();
 
 // ===================== 全局工具函数 =====================
-/** 判断是否为手机号 */
-function isPhone(phone: string) {
-  return /^[1][3-9][0-9]{9}$/.test(phone);
-}
-/** 判断是否为邮箱 */
-function isEmail(email: string) {
-  return /^\w+([.+-]\w+)*@\w+([.-]\w+)*\.\w+([.-]\w+)*$/.test(email);
-}
-/** 判断是否为身份证号 */
-function isIDCard(cardNumber: string) {
-  return /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/.test(cardNumber);
-}
 /** 判断是否为空 */
 function isNull(value: any) {
   return value === undefined || value === null || value === "";
 }
-/** 获取页面宽度 */
-function getWidth() {
-  const sys = Taro.getSystemInfoSync();
-  return sys.windowWidth;
-}
-/** 获取页面高度 */
-function getHeight() {
-  const sys = Taro.getSystemInfoSync();
-  return sys.windowHeight;
+
+/**
+ * 格式化时间显示：将ISO时间字符串转换为中文格式
+ * @param isoString ISO时间字符串
+ * @returns 格式化后的时间字符串 (YYYY-MM-DD HH:mm:ss)
+ */
+function formatDateTime(isoString: string): string {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  } catch {
+    return isoString;
+  }
 }
 
 // ===================== 全局临时数据存储 =====================
@@ -325,26 +260,6 @@ function setTemporaryData(key: string, value: any) {
 }
 function getTemporaryData(key: string) {
   return temporaryData[key];
-}
-
-// ===================== 全局页面跳转/导航 =====================
-/** Umi4 路由跳转（推荐） */
-function goto(
-  url: string,
-  type: "navigateTo" | "redirectTo" | "reLaunch" | "switchTab" = "navigateTo"
-) {
-  switch (type) {
-    case "navigateTo":
-      return Taro.navigateTo({ url });
-    case "redirectTo":
-      return Taro.redirectTo({ url });
-    case "reLaunch":
-      return Taro.reLaunch({ url });
-    case "switchTab":
-      return Taro.switchTab({ url });
-    default:
-      return Taro.navigateTo({ url });
-  }
 }
 
 // ===================== 全局网络请求工具（统一 Taro.request，无代理） =====================
@@ -366,26 +281,6 @@ async function put(url: string, data?: any) {
 /** DELETE 请求 */
 async function del(url: string, params?: Record<string, any>) {
   const res = await http.delete(url, { params });
-  return res.data;
-}
-
-/**
- * 通用 RESTful API 请求方法
- * @param options 实体名、操作类型、id、数据、参数
- * @returns Promise<any>
- */
-type CrudType = "create" | "read" | "update" | "delete";
-interface CrudOptions {
-  entity: string; // 实体名，如 'user'
-  action: CrudType; // 操作类型
-  id?: string | number; // 主键，查/改/删时用
-  data?: any; // 数据体
-  params?: any; // 查询参数
-}
-
-async function crudRequest(options: CrudOptions) {
-  const url = "/batch";
-  const res = await http.post(url, { options });
   return res.data;
 }
 
@@ -443,6 +338,87 @@ async function requestWithLoadingAndPagination(
   }
 }
 
+/**
+ * 图片上传请求方法
+ * @param filePath 本地图片文件路径
+ * @param options 额外配置
+ * @returns Promise<{code: number, data: {url: string}, message?: string}>
+ */
+async function uploadImage(
+  filePath: string,
+  options: {
+    url?: string; // 上传接口地址，默认 '/api/upload'
+    formData?: Record<string, any>; // 额外的表单数据
+    showLoading?: boolean; // 是否显示loading，默认true
+    needToken?: boolean; // 是否需要携带token，默认true
+  } = {}
+) {
+  const {
+    url = "/api/upload",
+    formData = {},
+    showLoading = true,
+    needToken = true,
+  } = options;
+
+  // 显示loading
+  if (showLoading) {
+    scope.showLoading("上传中...");
+  }
+
+  return new Promise((resolve, reject) => {
+    // 获取token（如果需要）
+    let header: Record<string, any> = {};
+    if (needToken) {
+      const token = getTokenWithExpiryCheck();
+      if (token) {
+        header["Authorization"] = `Bearer ${token}`;
+      }
+    }
+
+    Taro.uploadFile({
+      url: toAbsoluteUrl(url),
+      filePath: filePath,
+      name: "file",
+      formData: formData,
+      header: header,
+      success: (res) => {
+        try {
+          const data = JSON.parse(res.data);
+          console.log("Upload response:", data);
+
+          if (data.code === 200 && data.data && data.data.url) {
+            // 上传成功
+            resolve({
+              code: 200,
+              data: {
+                url: data.data.url,
+              },
+              message: "上传成功",
+            });
+          } else {
+            // 服务器返回错误
+            const errorMsg = data.errorMessage || data.message || "上传失败";
+            reject(new Error(errorMsg));
+          }
+        } catch (error) {
+          console.error("解析上传响应失败:", error);
+          reject(new Error("解析响应失败"));
+        }
+      },
+      fail: (error) => {
+        console.error("图片上传失败:", error);
+        reject(error);
+      },
+      complete: () => {
+        // 隐藏loading
+        if (showLoading) {
+          hideLoading();
+        }
+      },
+    });
+  });
+}
+
 // ===================== scope1 对象导出 =====================
 const scope1 = {
   // 基础地址
@@ -452,46 +428,26 @@ const scope1 = {
   http,
   // 常量
   themeColor,
-  themeFRColor,
-  themeBGColor,
-  themeH5BGColor,
-  colors,
-  amap_key,
-  qmap_key,
   // session
   session,
-  // 事件
-  events,
-  setEvent,
-  fireEvent,
-  removeEvent,
   // 消息/弹窗/通知
-  showInfo,
   showError,
-  showLoading,
   hideLoading,
-  showNotification,
-  showConfirm,
+  showLoading,
   // 工具函数
-  isPhone,
-  isEmail,
-  isIDCard,
   isNull,
-  getWidth,
-  getHeight,
+  formatDateTime,
   // 临时数据
   temporaryData,
   setTemporaryData,
   getTemporaryData,
-  // 页面跳转/导航
-  goto,
   // 网络请求
   get,
   post,
   put,
   del,
-  crudRequest, // 新增通用 RESTful API 方法
-  requestWithLoadingAndPagination, // 新增带 loading 和分页的请求方法
+  requestWithLoadingAndPagination, // 带 loading 和分页的请求方法
+  uploadImage, // 图片上传方法
 };
 
 globalThis.scope = scope1;

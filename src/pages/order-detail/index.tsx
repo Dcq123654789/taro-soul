@@ -1,39 +1,86 @@
 import { useEffect, useState } from "react";
-import { View, Text } from "@tarojs/components";
+import { View, Text, Image } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 type StatusType = "completed" | "processing" | "pending";
 
+// 根据API实际返回数据结构定义接口
 interface OrderDetail {
-  id: string;
+  _id: string;
   orderNo: string;
-  customerName: string;
-  amount: number;
-  status: StatusType;
+  clientName: string; // API返回的是clientName
+  productId: string;
+  totalQuantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  status: number;
+  statusCode: string;
   createTime: string;
-  employeeName?: string;
-  address?: string;
-  phone?: string;
-  remark?: string;
+  updateTime: string;
+  dueDate: string | null;
+  finishedQuantity: number | null;
+  remark: string;
+  orderImages: string[];
+  tenantId: string | null;
+  version: number;
+  new: boolean;
 }
 
-const buildOrderDetail = (payload: Partial<OrderDetail>): OrderDetail => ({
-  id: payload.id || "1",
-  orderNo: payload.orderNo || "ORD20240101001",
-  customerName: payload.customerName || "张三",
-  amount: payload.amount || 1280.0,
-  status: payload.status || "completed",
-  createTime: payload.createTime || "2024-01-15 10:30:00",
-  employeeName: payload.employeeName,
-  address: payload.address || "北京市朝阳区xxx街道xxx号",
-  phone: payload.phone || "13800138000",
-  remark: payload.remark || "请尽快处理",
+// 将API状态码转换为前端状态类型
+const normalizeStatus = (statusCode: string): StatusType => {
+  const statusMap: Record<string, StatusType> = {
+    已完成: "completed",
+    进行中: "processing",
+    待派发: "pending",
+    待确认: "pending",
+    已确认: "processing",
+    生产中: "processing",
+    已审批: "processing",
+  };
+  return statusMap[statusCode] || "pending";
+};
+
+// 构建订单详情数据（兼容旧数据和新API数据）
+const buildOrderDetail = (payload: any): OrderDetail => ({
+  _id: payload._id || payload.id || "",
+  orderNo: payload.orderNo || "未知订单",
+  clientName: payload.clientName || payload.customerName || "未知客户",
+  productId: payload.productId || "",
+  totalQuantity: payload.totalQuantity || 0,
+  unitPrice: payload.unitPrice || 0,
+  totalAmount: payload.totalAmount || 0,
+  status: payload.status || 0,
+  statusCode: payload.statusCode || "未知状态",
+  createTime: payload.createTime || "",
+  updateTime: payload.updateTime || "",
+  dueDate: payload.dueDate || null,
+  finishedQuantity: payload.finishedQuantity || null,
+  remark: payload.remark || "",
+  orderImages: payload.orderImages || [],
+  tenantId: payload.tenantId || null,
+  version: payload.version || 0,
+  new: payload.new || false,
 });
 
 export default function OrderDetail() {
   useAuthGuard();
   const [orderDetail, setOrderDetail] = useState<OrderDetail | null>(null);
+  const [previewImage, setPreviewImage] = useState<string>("");
+  const [showImagePreview, setShowImagePreview] = useState<boolean>(false);
+
+  console.log(orderDetail, "wqwq");
+
+  // 图片预览功能
+  const handleImagePreview = (imageUrl: string) => {
+    setPreviewImage(imageUrl);
+    setShowImagePreview(true);
+  };
+
+  const closeImagePreview = () => {
+    setShowImagePreview(false);
+    setPreviewImage("");
+  };
 
   useEffect(() => {
     const instance = Taro.getCurrentInstance();
@@ -56,7 +103,7 @@ export default function OrderDetail() {
     const params = router?.params || {};
     if (params.id || params.orderNo) {
       updateDetail({
-        id: params.id,
+        _id: params.id,
         orderNo: params.orderNo
           ? decodeURIComponent(params.orderNo)
           : undefined,
@@ -72,15 +119,6 @@ export default function OrderDetail() {
     }
   }, []);
 
-  const getStatusText = (status: StatusType) => {
-    const map = {
-      completed: "已完成",
-      processing: "进行中",
-      pending: "待派发",
-    };
-    return map[status];
-  };
-
   const getStatusColor = (status: StatusType) => {
     const map = {
       completed: "#10B981",
@@ -88,6 +126,11 @@ export default function OrderDetail() {
       pending: "#F59E0B",
     };
     return map[status];
+  };
+
+  // 获取状态类型（用于显示）
+  const getOrderStatus = (): StatusType => {
+    return normalizeStatus(orderDetail!.statusCode);
   };
 
   if (!orderDetail) {
@@ -115,145 +158,62 @@ export default function OrderDetail() {
         boxSizing: "border-box",
       }}
     >
-      {/* 订单基本信息 */}
+      {/* 订单基本信息和金额信息合并 */}
       <View
         style={{
           backgroundColor: "#FFFFFF",
           borderRadius: "12px",
-          padding: "16px",
-          marginBottom: "12px",
+          padding: "20px",
+          marginBottom: "24px", // 增加间距
           boxShadow: "0 1px 8px rgba(15, 23, 42, 0.05)",
         }}
       >
+        {/* 订单头部 */}
         <View
           style={{
             display: "flex",
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "flex-start",
-            marginBottom: "16px",
+            marginBottom: "20px",
           }}
         >
           <View style={{ flex: 1 }}>
             <Text
-              style={{ fontSize: "18px", fontWeight: "700", color: "#0F172A" }}
+              style={{ fontSize: "20px", fontWeight: "700", color: "#0F172A" }}
             >
               {orderDetail.orderNo}
             </Text>
             <View style={{ marginTop: "8px" }}>
               <Text style={{ fontSize: "14px", color: "#64748B" }}>
-                创建时间：{orderDetail.createTime}
+                创建时间：{scope.formatDateTime(orderDetail.createTime)}
               </Text>
             </View>
           </View>
           <View
             style={{
-              padding: "6px 16px",
+              padding: "8px 16px",
               borderRadius: "12px",
-              backgroundColor: `${getStatusColor(orderDetail.status)}15`,
+              backgroundColor: `${getStatusColor(getOrderStatus())}15`,
             }}
           >
             <Text
               style={{
-                fontSize: "13px",
+                fontSize: "14px",
                 fontWeight: "600",
-                color: getStatusColor(orderDetail.status),
+                color: getStatusColor(getOrderStatus()),
               }}
             >
-              {getStatusText(orderDetail.status)}
+              {orderDetail.statusCode}
             </Text>
           </View>
         </View>
 
+        {/* 订单金额信息 */}
         <View
           style={{
-            paddingTop: "16px",
-            borderTop: "1px solid #F1F5F9",
-          }}
-        >
-          <View
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginBottom: "12px",
-            }}
-          >
-            <Text style={{ fontSize: "14px", color: "#64748B" }}>订单金额</Text>
-            <Text
-              style={{ fontSize: "20px", fontWeight: "700", color: "#0F172A" }}
-            >
-              ¥{orderDetail.amount.toFixed(2)}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* 客户信息 */}
-      <View
-        style={{
-          backgroundColor: "#FFFFFF",
-          borderRadius: "12px",
-          padding: "16px",
-          marginBottom: "12px",
-          boxShadow: "0 1px 8px rgba(15, 23, 42, 0.05)",
-        }}
-      >
-        <Text
-          style={{
-            fontSize: "16px",
-            fontWeight: "600",
-            color: "#0F172A",
-            marginBottom: "12px",
-          }}
-        >
-          客户信息
-        </Text>
-        <View style={{ marginBottom: "10px" }}>
-          <Text
-            style={{ fontSize: "13px", color: "#64748B", marginRight: "8px" }}
-          >
-            客户姓名：
-          </Text>
-          <Text style={{ fontSize: "14px", color: "#0F172A" }}>
-            {orderDetail.customerName}
-          </Text>
-        </View>
-        {orderDetail.phone && (
-          <View style={{ marginBottom: "10px" }}>
-            <Text
-              style={{ fontSize: "13px", color: "#64748B", marginRight: "8px" }}
-            >
-              联系电话：
-            </Text>
-            <Text style={{ fontSize: "14px", color: "#0F172A" }}>
-              {orderDetail.phone}
-            </Text>
-          </View>
-        )}
-        {orderDetail.address && (
-          <View>
-            <Text
-              style={{ fontSize: "13px", color: "#64748B", marginRight: "8px" }}
-            >
-              收货地址：
-            </Text>
-            <Text style={{ fontSize: "14px", color: "#0F172A" }}>
-              {orderDetail.address}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* 员工信息（如果是员工订单） */}
-      {orderDetail.employeeName && (
-        <View
-          style={{
-            backgroundColor: "#FFFFFF",
-            borderRadius: "12px",
-            padding: "16px",
-            marginBottom: "12px",
-            boxShadow: "0 1px 8px rgba(15, 23, 42, 0.05)",
+            backgroundColor: "#F8FAFC",
+            borderRadius: "8px",
           }}
         >
           <Text
@@ -261,20 +221,207 @@ export default function OrderDetail() {
               fontSize: "16px",
               fontWeight: "600",
               color: "#0F172A",
-              marginBottom: "12px",
             }}
           >
-            员工信息
+            订单信息
           </Text>
-          <View>
-            <Text
-              style={{ fontSize: "13px", color: "#64748B", marginRight: "8px" }}
+
+          <View style={{ marginBottom: "12px", padding: "24px" }}>
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginBottom: "10px",
+              }}
             >
-              负责员工：
-            </Text>
-            <Text style={{ fontSize: "14px", color: "#0F172A" }}>
-              {orderDetail.employeeName}
-            </Text>
+              <Text
+                style={{
+                  fontSize: "13px",
+                  color: "#64748B",
+                  marginRight: "8px",
+                }}
+              >
+                客户姓名：
+              </Text>
+              <Text style={{ fontSize: "14px", color: "#0F172A" }}>
+                {orderDetail.clientName}
+              </Text>
+            </View>
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginBottom: "10px",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: "13px",
+                  color: "#64748B",
+                  marginRight: "8px",
+                }}
+              >
+                产品ID：
+              </Text>
+              <Text style={{ fontSize: "14px", color: "#0F172A" }}>
+                {orderDetail.productId || "未指定"}
+              </Text>
+            </View>
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginBottom: "10px",
+              }}
+            >
+              <Text style={{ fontSize: "14px", color: "#64748B" }}>
+                订单数量
+              </Text>
+              <Text
+                style={{
+                  fontSize: "14px",
+                  color: "#0F172A",
+                  fontWeight: "500",
+                }}
+              >
+                {orderDetail.totalQuantity} 件
+              </Text>
+            </View>
+
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginBottom: "10px",
+              }}
+            >
+              <Text style={{ fontSize: "14px", color: "#64748B" }}>单价</Text>
+              <Text
+                style={{
+                  fontSize: "14px",
+                  color: "#0F172A",
+                  fontWeight: "500",
+                }}
+              >
+                ¥{orderDetail.unitPrice.toFixed(2)}
+              </Text>
+            </View>
+
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                paddingTop: "20px",
+                borderTop: "1px solid #E2E8F0",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: "16px",
+                  color: "#0F172A",
+                  fontWeight: "600",
+                }}
+              >
+                总金额
+              </Text>
+              <Text
+                style={{
+                  fontSize: "20px",
+                  color: "#10B981",
+                  fontWeight: "700",
+                }}
+              >
+                ¥{orderDetail.totalAmount.toFixed(2)}
+              </Text>
+            </View>
+
+            {orderDetail.finishedQuantity !== null && (
+              <View
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginTop: "12px",
+                  paddingTop: "12px",
+                  borderTop: "1px solid #E2E8F0",
+                }}
+              >
+                <Text style={{ fontSize: "14px", color: "#64748B" }}>
+                  已完成数量1
+                </Text>
+                <Text
+                  style={{
+                    fontSize: "14px",
+                    color: "#3B82F6",
+                    fontWeight: "500",
+                  }}
+                >
+                  {orderDetail.finishedQuantity} 件
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+
+      {/* 订单图片 */}
+      {orderDetail.orderImages && orderDetail.orderImages.length > 0 && (
+        <View
+          style={{
+            backgroundColor: "#FFFFFF",
+            borderRadius: "12px",
+            padding: "20px",
+            marginBottom: "24px", // 增加间距
+            boxShadow: "0 1px 8px rgba(15, 23, 42, 0.05)",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: "18px",
+              fontWeight: "600",
+              color: "#0F172A",
+            }}
+          >
+            订单图片 ({orderDetail.orderImages.length})
+          </Text>
+          <View
+            style={{
+              marginTop: 16,
+              display: "flex",
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: "12px", // 增加图片间距
+            }}
+          >
+            {orderDetail.orderImages.map((imageUrl, index) => (
+              <View
+                key={index}
+                onClick={() => handleImagePreview(imageUrl)}
+                style={{
+                  width: "120px", // 稍微增大切片尺寸
+                  height: "120px",
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  border: "1px solid #E2E8F0",
+                  cursor: "pointer",
+                }}
+              >
+                <Image
+                  src={imageUrl}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                  mode="aspectFill"
+                />
+              </View>
+            ))}
           </View>
         </View>
       )}
@@ -285,26 +432,91 @@ export default function OrderDetail() {
           style={{
             backgroundColor: "#FFFFFF",
             borderRadius: "12px",
-            padding: "16px",
-            marginBottom: "12px",
+            padding: "20px",
+            marginBottom: "24px", // 增加间距
             boxShadow: "0 1px 8px rgba(15, 23, 42, 0.05)",
           }}
         >
           <Text
             style={{
-              fontSize: "16px",
+              fontSize: "18px",
               fontWeight: "600",
               color: "#0F172A",
-              marginBottom: "12px",
+              marginBottom: "16px",
             }}
           >
             备注信息
           </Text>
-          <Text
-            style={{ fontSize: "14px", color: "#0F172A", lineHeight: "1.6" }}
+          <View
+            style={{
+              backgroundColor: "#F8FAFC",
+              borderRadius: "8px",
+              padding: "16px",
+            }}
           >
-            {orderDetail.remark}
-          </Text>
+            <Text
+              style={{ fontSize: "14px", color: "#0F172A", lineHeight: "1.6" }}
+            >
+              {orderDetail.remark}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* 图片预览弹窗 */}
+      {showImagePreview && (
+        <View
+          onClick={closeImagePreview}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <View
+            style={{
+              position: "relative",
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Image
+              src={previewImage}
+              style={{
+                width: "auto",
+                height: "auto",
+                maxWidth: "90vw",
+                maxHeight: "90vh",
+                objectFit: "contain",
+              }}
+              mode="aspectFit"
+            />
+            <View
+              onClick={closeImagePreview}
+              style={{
+                position: "absolute",
+                top: "-40px",
+                right: "0",
+                width: "30px",
+                height: "30px",
+                borderRadius: "50%",
+                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: "#FFFFFF", fontSize: "18px" }}>×</Text>
+            </View>
+          </View>
         </View>
       )}
     </View>

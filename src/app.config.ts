@@ -9,6 +9,8 @@ export default defineAppConfig({
     "pages/profile/agreement/index",
     "pages/profile/privacy/index",
     "pages/profile/personal-info/index",
+    "pages/hall/add-order/index",
+    "pages/hall/add-employee-order/index",
   ],
   window: {
     backgroundTextStyle: "light",

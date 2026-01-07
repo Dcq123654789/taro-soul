@@ -104,40 +104,13 @@ const ProfilePage: React.FC = () => {
   };
 
   // 处理编辑资料点击
-  const handleEditProfile = () => {
-    console.log("编辑资料");
-  };
-
-  // 处理会员等级点击
-  const handleMemberClick = () => {
-    console.log("会员详情");
-  };
-
-  // 处理数据统计点击
-  const handleStatsClick = (type: "follow" | "fans" | "like") => {
-    console.log(`点击统计: ${type}`);
-  };
-
-  // 处理退出登录
-  const handleLogout = () => {
-    console.log("退出登录");
-  };
-
-  // 计算用户信息卡片的缩放比例
-  const getCardScale = () => {
-    const maxScale = 1;
-    const minScale = 0.95;
-    const scaleRange = maxScale - minScale;
-    const scrollThreshold = 200;
-    const progress = Math.min(scrollTop / scrollThreshold, 1);
-    return maxScale - scaleRange * progress;
-  };
 
   return (
     <View
       style={{
         minHeight: "100vh",
-        backgroundColor: "#F5F5F5",
+        // 轻柔蓝色底色，提升整体质感
+        backgroundColor: "#F6FBFF",
         position: "relative",
       }}
     >
@@ -151,14 +124,16 @@ const ProfilePage: React.FC = () => {
         enableFlex
         scrollWithAnimation
       >
-        {/* 人物信息展示区域 */}
+        {/* 人物信息展示区域（更简洁的卡片风格与柔和色调） */}
         <View
           style={{
-            margin: "24rpx",
             backgroundColor: "#FFFFFF",
-            borderRadius: "16rpx",
-            padding: "32rpx",
-            boxShadow: "0 4rpx 12rpx rgba(0, 0, 0, 0.1)",
+            borderRadius: "20rpx",
+            margin: "24rpx",
+            zIndex: 2,
+            padding: "28rpx",
+            // 轻微阴影让卡片有层次感
+            boxShadow: "0 8rpx 20rpx rgba(14, 30, 37, 0.06)",
           }}
         >
           {/* 头像区域 */}
@@ -166,18 +141,28 @@ const ProfilePage: React.FC = () => {
             style={{
               display: "flex",
               alignItems: "center",
-              marginBottom: "24rpx",
+              marginBottom: "20rpx",
             }}
           >
-            <Avatar
-              src={userInfo.avatar}
+            {/* 圆形头像容器：使用 Image 的 aspectFill（覆盖）模式裁剪为圆形 */}
+            <View
               style={{
                 width: "140rpx",
                 height: "140rpx",
                 borderRadius: "70rpx",
                 marginRight: "24rpx",
+                overflow: "hidden",
+                boxShadow: "0 8rpx 18rpx rgba(14, 30, 37, 0.08)",
+                backgroundColor: "#f2f6fb",
+                flexShrink: 0,
               }}
-            />
+            >
+              <Image
+                src={userInfo.avatar}
+                mode="aspectFill"
+                style={{ width: "100%", height: "100%", display: "block" }}
+              />
+            </View>
             <View style={{ flex: 1 }}>
               {/* 人物名称 */}
               <Text
@@ -203,20 +188,20 @@ const ProfilePage: React.FC = () => {
             </View>
           </View>
         </View>
-        {/* 功能区 - 宫格布局 */}
+        {/* 功能区 - 精简宫格布局 */}
         <View
           style={{
             margin: "24rpx 24rpx 0",
-            backgroundColor: "#FFFFFF",
-            borderRadius: "16rpx",
-            padding: "32rpx 24rpx",
+            backgroundColor: "transparent",
+            borderRadius: "12rpx",
+            padding: "16rpx 8rpx",
           }}
         >
           <View
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "32rpx",
+              gap: "20rpx",
             }}
           >
             {functionItems.map((item) => (
@@ -228,25 +213,26 @@ const ProfilePage: React.FC = () => {
                   flexDirection: "column",
                   alignItems: "center",
                   cursor: "pointer",
-                  padding: "16rpx",
-                  borderRadius: "12rpx",
-                  transition: "transform 0.2s ease",
+                  padding: "10rpx",
+                  borderRadius: "14rpx",
+                  transition: "transform 0.18s ease",
+                  backgroundColor: "#FFFFFF",
+                  boxShadow: "0 6rpx 18rpx rgba(14,30,37,0.06)",
                 }}
               >
                 <View
                   style={{
-                    width: "88rpx",
-                    height: "88rpx",
-                    backgroundColor: `${item.color}20`,
-                    borderRadius: "44rpx",
+                    width: "80rpx",
+                    height: "80rpx",
+                    backgroundColor: `${item.color}15`,
+                    borderRadius: "40rpx",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    marginBottom: "12rpx",
-                    boxShadow: "0 4rpx 12rpx rgba(0, 0, 0, 0.1)",
+                    marginBottom: "10rpx",
                   }}
                 >
-                  <Text style={{ fontSize: "36rpx" }}>
+                  <Text style={{ fontSize: "34rpx" }}>
                     {item.icon === "star" && "⭐"}
                     {item.icon === "shopping-cart" && "🛒"}
                     {item.icon === "wallet" && "💰"}
@@ -257,9 +243,10 @@ const ProfilePage: React.FC = () => {
                 </View>
                 <Text
                   style={{
-                    fontSize: "26rpx",
-                    color: "#333333",
+                    fontSize: "28rpx",
+                    color: "#222222",
                     textAlign: "center",
+                    fontWeight: 500,
                   }}
                 >
                   {item.title}
