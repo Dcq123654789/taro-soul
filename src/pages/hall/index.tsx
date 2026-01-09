@@ -88,20 +88,41 @@ export default function Hall() {
 
   /*
     员工订单数据转换函数：将后端员工订单API数据转换为前端OrderItem格式
-    生成逻辑：根据员工订单特有的字段结构进行直接映射转换
-    依赖技术：对象解构、类型断言、直接字段映射
+    生成逻辑：根据员工订单特有的字段结构进行映射转换，支持关联查询的员工信息
+    依赖技术：对象解构、类型断言、关联数据处理等
   */
-  const transformEmployeeOrderData = (rawData: any[]): OrderItem[] => {
-    return rawData.map((item: any) => ({
-      id: item._id || item.id || "",
-      orderNo: item.orderName || "", // 员工订单使用orderName作为订单号显示
-      customerName: item.orderName || "", // 员工订单显示订单名称作为客户信息
-      amount: item.totalAmount || 0, // 员工订单直接使用totalAmount
-      quantity: item.assignedQuantity || 0, // 员工订单使用assignedQuantity
-      status: normalizeStatus(item.statusCode || ""),
-      createTime: scope.formatDateTime(item.createTime || ""),
-      employeeName: item.employee.employee || "未知员工", // 直接使用API返回的员工姓名
-    }));
+  const transformEmployeeOrderData = (
+    rawData: any[],
+    employees: any[] = []
+  ): OrderItem[] => {
+    return rawData.map((item: any) => {
+      // 从关联查询结果中获取员工姓名，优先使用关联的employee对象
+      let employeeName = "未知员工";
+      if (item.employee && typeof item.employee === "object") {
+        // 如果有关联查询的employee对象
+        employeeName = item.employee.name || "未知员工";
+      } else if (employees.length > 0) {
+        // 备用：根据employeeId查找员工姓名
+        const employee = employees.find(
+          (emp) => emp._id === item.employeeId || emp.id === item.employeeId
+        );
+        employeeName = employee ? employee.name : "未知员工";
+      } else if (item.employeeName) {
+        // 如果API直接返回了employeeName字段
+        employeeName = item.employeeName;
+      }
+
+      return {
+        id: item._id || item.id || "",
+        orderNo: item.orderName || "", // 员工订单使用orderName作为订单号显示
+        customerName: item.orderName || "", // 员工订单显示订单名称作为客户信息
+        amount: item.totalAmount || 0, // 员工订单直接使用totalAmount
+        quantity: item.assignedQuantity || 0, // 员工订单使用assignedQuantity
+        status: normalizeStatus(item.statusCode || ""),
+        createTime: scope.formatDateTime(item.createTime || ""),
+        employeeName: employeeName, // 显示负责员工姓名
+      };
+    });
   };
 
   const fetchData = useCallback(async () => {
@@ -159,7 +180,8 @@ export default function Hall() {
       );
       const employeeOrderRemoteList = safeExtractList(employeeOrderRes);
       const transformedEmployeeOrderData = transformEmployeeOrderData(
-        employeeOrderRemoteList
+        employeeOrderRemoteList,
+        [] // 不需要单独的员工列表，因为已经在关联查询中获取
       );
       setEmployeeOrderData(transformedEmployeeOrderData);
       setRawEmployeeOrderData(employeeOrderRemoteList); // 保存原始数据
@@ -715,11 +737,10 @@ export default function Hall() {
                             marginBottom: "4px",
                           }}
                         >
-                          任务名称:
+                          任务名称
                         </Text>
                         <Text
                           style={{
-                            padding: 8,
                             fontSize: "14px",
                             fontWeight: "500",
                             color: "#0F172A",
@@ -743,11 +764,10 @@ export default function Hall() {
                               marginBottom: "4px",
                             }}
                           >
-                            订单数量:
+                            订单数量
                           </Text>
                           <Text
                             style={{
-                              padding: 8,
                               fontSize: "14px",
                               fontWeight: "500",
                               color: "#0F172A",
@@ -764,11 +784,10 @@ export default function Hall() {
                               marginBottom: "4px",
                             }}
                           >
-                            负责员工:
+                            负责员工
                           </Text>
                           <Text
                             style={{
-                              padding: 8,
                               fontSize: "14px",
                               fontWeight: "500",
                               color: "#0F172A",
