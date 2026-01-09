@@ -492,7 +492,7 @@ export default function Hall() {
             }}
           >
             <Text style={{ fontSize: "14px", color: "#94A3B8" }}>
-              数据加载中...
+              数据加载中...123
             </Text>
           </View>
         ) : filteredData.length === 0 ? (
