@@ -5,10 +5,15 @@ import {
   Button,
   Checkbox,
   CheckboxGroup,
+  Image,
 } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 
-// 类型定义
+// 导入图片
+import techBgImg from "../../assets/images/tech-bg.jpg";
+import factoryHeaderImg from "../../assets/images/factory-header.jpg";
+
+// 类型定义 
 interface LoginResponse {
   code: number;
   msg: string;
@@ -18,18 +23,14 @@ interface LoginResponse {
     userId: string;
     role: string;
     enabled: string;
-    nickname?: string; // 用户昵称
-    avatarUrl?: string; // 用户头像
   };
 }
 
 interface UserInfo {
-  userId: string;
+  userId: string; 
   openid: string;
   role: string;
   enabled: string;
-  nickname?: string; // 用户昵称
-  avatarUrl?: string; // 用户头像
 }
 
 // URL构建工具函数
@@ -61,47 +62,13 @@ const buildApiUrl = (apiPath: string, scopeRef: any): string => {
   // 最后兜底：使用开发环境地址
   return `http://localhost:8888${apiPath}`;
 };
-// Base64 编码/解码辅助函数（兼容小程序环境）
-const base64Encode = (str: string): string => {
-  try {
-    // 小程序环境兼容处理
-    if (typeof btoa !== "undefined") {
-      return btoa(encodeURIComponent(str));
-    }
-    // 备用方案：使用简单的字符替换（生产环境应使用更安全的加密）
-    return encodeURIComponent(str).replace(/%/g, "_");
-  } catch (error) {
-    console.error("Base64 编码失败:", error);
-    return str;
-  }
-};
-
-const base64Decode = (str: string): string => {
-  // 首先尝试用 atob 解码（标准 base64）
-  if (typeof atob !== "undefined") {
-    try {
-      return decodeURIComponent(atob(str));
-    } catch (error) {
-      // atob 解码失败，可能是备用方案编码的数据
-    }
-  }
-
-  // 尝试备用方案：恢复字符替换
-  try {
-    return decodeURIComponent(str.replace(/_/g, "%"));
-  } catch (error) {
-    // console.error("备用方案解码也失败:", error);
-    // 如果都失败，返回原始字符串
-    return str;
-  }
-};
 
 // 加密存储工具函数
 const secureStorage = {
   set: (key: string, value: string) => {
     try {
       // 简单加密处理（生产环境建议使用更强的加密）
-      const encrypted = base64Encode(value);
+      const encrypted = btoa(encodeURIComponent(value));
       Taro.setStorageSync(key, encrypted);
     } catch (error) {
       console.error("存储失败:", error);
@@ -112,7 +79,7 @@ const secureStorage = {
     try {
       const encrypted = Taro.getStorageSync(key);
       if (!encrypted) return null;
-      return base64Decode(encrypted);
+      return decodeURIComponent(atob(encrypted));
     } catch (error) {
       console.error("读取存储失败:", error);
       return null;
@@ -133,12 +100,15 @@ const validateUserInfo = (data: any): data is LoginResponse["data"] => {
 };
 
 export default function LoginPage() {
+  // 测试基本的React hooks是否工作
+  const [testState, setTestState] = useState("test");
+  console.log("React hooks working:", testState);
+
   const [loading, setLoading] = useState(false);
   const [agreeProtocol, setAgreeProtocol] = useState(true);
 
   // 使用 useRef 避免不必要的重渲染
   const isRequestCancelledRef = useRef(false);
-  const isGettingUserInfoRef = useRef(false);
   const scopeRef = useRef((globalThis as any)?.scope);
 
   // 缓存 API URL，避免重复计算
@@ -147,11 +117,10 @@ export default function LoginPage() {
     return buildApiUrl(apiPath, scopeRef.current);
   }, []);
 
-  // 组件卸载时清理请求和状态
+  // 组件卸载时清理请求
   useEffect(() => {
     return () => {
       isRequestCancelledRef.current = true;
-      isGettingUserInfoRef.current = false;
     };
   }, []);
 
@@ -168,55 +137,6 @@ export default function LoginPage() {
     return true;
   }, [agreeProtocol]);
 
-  // 获取微信用户信息（带频率限制）
-  const getWechatUserInfo = useCallback(async () => {
-    // 防止频繁调用
-    if (isGettingUserInfoRef.current) {
-      console.warn("正在获取用户信息，请稍后再试");
-      return null;
-    }
-
-    isGettingUserInfoRef.current = true;
-
-    try {
-      const userInfoRes = await Taro.getUserProfile({
-        desc: "用于完善用户资料",
-      });
-
-      // 延迟重置标记，防止过于频繁的调用
-      setTimeout(() => {
-        isGettingUserInfoRef.current = false;
-      }, 2000); // 2秒内不允许再次调用
-
-      return {
-        nickName: userInfoRes.userInfo.nickName,
-        avatarUrl: userInfoRes.userInfo.avatarUrl,
-        gender: userInfoRes.userInfo.gender,
-        country: userInfoRes.userInfo.country,
-        province: userInfoRes.userInfo.province,
-        city: userInfoRes.userInfo.city,
-        language: userInfoRes.userInfo.language,
-        is_demote: (userInfoRes.userInfo as any).is_demote,
-      };
-    } catch (error) {
-      console.error("获取用户信息失败:", error);
-      // 用户拒绝授权或其他错误，立即重置标记
-      isGettingUserInfoRef.current = false;
-
-      // 如果是用户主动取消，不显示错误提示
-      const errorMsg = (error as any)?.errMsg || "";
-      if (errorMsg.includes("auth deny") || errorMsg.includes("cancel")) {
-        Taro.showToast({
-          title: "需要授权获取用户信息才能登录",
-          icon: "none",
-          duration: 3000,
-        });
-      }
-
-      return null;
-    }
-  }, []);
-
   // 获取微信登录code
   const getWechatCode = useCallback(async (): Promise<string> => {
     const loginRes = await Taro.login();
@@ -228,14 +148,9 @@ export default function LoginPage() {
 
   // 执行登录请求（带重试机制）
   const performLoginRequest = useCallback(
-    async (
-      code: string,
-      userInfo: any = null,
-      retryCount = 0
-    ): Promise<LoginResponse> => {
+    async (code: string, retryCount = 0): Promise<LoginResponse> => {
       const maxRetries = 2;
       const timeout = 10000; // 10秒超时
-      console.log(userInfo, "122ddd");
 
       try {
         // 检查请求是否被取消
@@ -243,16 +158,10 @@ export default function LoginPage() {
           throw new Error("请求已取消");
         }
 
-        const requestData: any = { code };
-        if (userInfo) {
-          requestData.userInfo = userInfo;
-        }
-        console.log(requestData, 12223);
-
         const response = await Taro.request<LoginResponse>({
           url: apiUrl,
           method: "POST",
-          data: requestData,
+          data: { code },
           header: {
             "Content-Type": "application/json",
           },
@@ -371,15 +280,11 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      // 1. 获取微信用户信息
-      const userInfo = await getWechatUserInfo();
-
-      // 2. 获取微信code
+      // 1. 获取微信code
       const code = await getWechatCode();
 
-      // 3. 执行登录请求（包含用户信息）
-      const result = await performLoginRequest(code, userInfo);
-      console.log(result, "result");
+      // 2. 执行登录请求
+      const result = await performLoginRequest(code);
 
       // 3. 保存认证信息
       saveAuthInfo(result.data);
@@ -399,7 +304,6 @@ export default function LoginPage() {
   }, [
     loading,
     checkProtocolAgreement,
-    getWechatUserInfo,
     getWechatCode,
     performLoginRequest,
     saveAuthInfo,
@@ -411,77 +315,345 @@ export default function LoginPage() {
     <View
       style={{
         minHeight: "100vh",
-        backgroundColor: "#F5F7FB",
         padding: "32px 24px",
         boxSizing: "border-box",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
+      {/* 背景图片 */}
+      <Image
+        src={techBgImg}
+        mode="aspectFill"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          zIndex: 0,
+        }}
+      />
+
+      {/* 半透明遮罩 */}
       <View
         style={{
-          marginTop: "40px",
-          marginBottom: "24px",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.9) 100%)",
+          zIndex: 1,
+        }}
+      />
+
+      {/* 内容区域 */}
+      <View style={{ position: "relative", zIndex: 2 }}>
+
+      {/* APP头部区域 */}
+      <View
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          marginTop: "20px",
+          marginBottom: "32px",
+          position: "relative",
         }}
       >
-        <Text
+        {/* APP Logo卡片 - 使用工厂图片 */}
+        <View
           style={{
-            display: "block",
-            fontSize: "24px",
-            fontWeight: "700",
-            color: "#0F172A",
-            marginBottom: "8px",
+            width: "140px",
+            height: "140px",
+            borderRadius: "28px",
+            overflow: "hidden",
+            marginBottom: "20px",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.4)",
+            position: "relative",
+            borderWidth: "3px",
+            borderColor: "rgba(255,255,255,0.3)",
+            borderStyle: "solid",
           }}
         >
-          欢迎使用
-        </Text>
-        <Text style={{ fontSize: "14px", color: "#64748B" }}>
-          使用微信账号快速登录，首次登录将自动注册
-        </Text>
-      </View>
+          <Image
+            src={factoryHeaderImg}
+            mode="aspectFill"
+            style={{ width: "100%", height: "100%" }}
+          />
+          {/* 渐变遮罩 */}
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%)",
+            }}
+          />
+        </View>
 
-      <View
-        style={{
-          backgroundColor: "#FFFFFF",
-          borderRadius: "20px",
-          padding: "24px",
-          boxShadow: "0 12px 40px rgba(15,23,42,0.08)",
-        }}
-      >
-        <Button
-          disabled={loading}
-          onClick={handleWechatLogin}
+        {/* APP名称 */}
+        <Text
           style={{
-            backgroundColor: loading ? "#CBD5F5" : "#07C160",
+            fontSize: "32px",
+            fontWeight: "800",
             color: "#FFFFFF",
-            borderRadius: "12px",
-            height: "48px",
-            lineHeight: "48px",
-            fontSize: "16px",
-            fontWeight: "600",
+            marginBottom: "8px",
+            textAlign: "center",
+            textShadow: "0 4px 20px rgba(0,0,0,0.5)",
+            letterSpacing: "2px",
+          }}
+        >
+          智能加工管理
+        </Text>
+
+        {/* 副标题 */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "16px",
+          }}
+        >
+          <View
+            style={{
+              width: "40px",
+              height: "3px",
+              background: "linear-gradient(90deg, transparent 0%, #667eea 100%)",
+            }}
+          />
+          <Text
+            style={{
+              fontSize: "16px",
+              color: "rgba(255,255,255,0.9)",
+              fontWeight: "500",
+              letterSpacing: "4px",
+            }}
+          >
+            INTELLIGENT FACTORY
+          </Text>
+          <View
+            style={{
+              width: "40px",
+              height: "3px",
+              background: "linear-gradient(90deg, #667eea 0%, transparent 100%)",
+            }}
+          />
+        </View>
+
+        {/* 功能特性 */}
+        <View
+          style={{
+            marginTop: "20px",
             width: "100%",
           }}
         >
-          {loading ? "登录中..." : "微信一键登录"}
-        </Button>
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-around",
+              flexWrap: "wrap",
+            }}
+          >
+            <View style={{ alignItems: "center", marginHorizontal: "8px" }}>
+              <Text style={{ fontSize: "32px", marginBottom: "6px" }}>🏭</Text>
+              <Text style={{ fontSize: "13px", color: "rgba(255,255,255,0.9)", fontWeight: "500" }}>数据管理</Text>
+            </View>
 
+            <View style={{ width: "1px", height: "35px", backgroundColor: "rgba(255,255,255,0.3)" }} />
+
+            <View style={{ alignItems: "center", marginHorizontal: "8px" }}>
+              <Text style={{ fontSize: "32px", marginBottom: "6px" }}>📦</Text>
+              <Text style={{ fontSize: "13px", color: "rgba(255,255,255,0.9)", fontWeight: "500" }}>材料库</Text>
+            </View>
+
+            <View style={{ width: "1px", height: "35px", backgroundColor: "rgba(255,255,255,0.3)" }} />
+
+            <View style={{ alignItems: "center", marginHorizontal: "8px" }}>
+              <Text style={{ fontSize: "32px", marginBottom: "6px" }}>⚙️</Text>
+              <Text style={{ fontSize: "13px", color: "rgba(255,255,255,0.9)", fontWeight: "500" }}>智能生产</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 欢迎提示 */}
+        <Text
+          style={{
+            fontSize: "13px",
+            color: "rgba(255,255,255,0.7)",
+            textAlign: "center",
+            paddingHorizontal: "20px",
+            marginTop: "20px",
+            lineHeight: "1.6",
+          }}
+        >
+          使用微信账号登录，开启智能加工之旅
+        </Text>
+      </View>
+
+      {/* 登录卡片 */}
+      <View
+        style={{
+          backgroundColor: "rgba(255, 255, 255, 0.1)",
+          backdropFilter: "blur(10px)",
+          borderRadius: "24px",
+          padding: "32px 24px",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
+          position: "relative",
+        }}
+      >
+        {/* 卡片装饰图标 */}
         <View
           style={{
-            marginTop: "16px",
+            position: "absolute",
+            top: -15,
+            right: 20,
+            width: "30px",
+            height: "30px",
+            backgroundColor: "#667eea",
+            borderRadius: "50%",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+          }}
+        >
+          <Text style={{ fontSize: "14px" }}>🔒</Text>
+        </View>
+
+        {/* 登录按钮 */}
+        <View
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: loading ? "rgba(255, 255, 255, 0.3)" : "#07C160",
+            borderRadius: "16px",
+            height: "56px",
+            boxShadow: loading ? "none" : "0 8px 24px rgba(7, 193, 96, 0.3)",
+          }}
+          onClick={loading ? undefined : handleWechatLogin}
+        >
+          <Text style={{ fontSize: "24px", marginRight: "12px" }}>💬</Text>
+          <Text
+            style={{
+              fontSize: "17px",
+              fontWeight: "600",
+              color: "#FFFFFF",
+            }}
+          >
+            {loading ? "登录中..." : "微信一键登录"}
+          </Text>
+        </View>
+
+        {/* 协议区域 */}
+        <View
+          style={{
+            marginTop: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            gap: "4px",
           }}
         >
           <CheckboxGroup onChange={handleProtocolChange}>
             <Checkbox
               value="agree"
               checked={agreeProtocol}
-              style={{ transform: "scale(0.8)", marginRight: "8px" }}
+              style={{ transform: "scale(0.85)" }}
             />
           </CheckboxGroup>
-          <Text style={{ fontSize: "12px", color: "#94A3B8" }}>
-            登录即表示同意《用户协议》和《隐私政策》
+          <Text style={{ fontSize: "13px", color: "rgba(255,255,255,0.7)" }}>
+            登录即表示同意
           </Text>
+          <View
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            <Text style={{ fontSize: "14px" }}>📄</Text>
+            <Text style={{ fontSize: "13px", color: "#667eea" }}>
+              《用户协议》
+            </Text>
+          </View>
+          <Text style={{ fontSize: "13px", color: "#64748B" }}>和</Text>
+          <View
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            <Text style={{ fontSize: "14px" }}>🛡️</Text>
+            <Text style={{ fontSize: "13px", color: "#667eea" }}>
+              《隐私政策》
+            </Text>
+          </View>
         </View>
+
+        {/* 底部装饰 */}
+        <View
+          style={{
+            marginTop: "24px",
+            display: "flex",
+            justifyContent: "center",
+            gap: "8px",
+          }}
+        >
+          <View
+            style={{
+              width: "32px",
+              height: "4px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "2px",
+              opacity: 0.3,
+            }}
+          />
+          <View
+            style={{
+              width: "32px",
+              height: "4px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "2px",
+              opacity: 0.5,
+            }}
+          />
+          <View
+            style={{
+              width: "32px",
+              height: "4px",
+              backgroundColor: "#FFFFFF",
+              borderRadius: "2px",
+              opacity: 0.7,
+            }}
+          />
+        </View>
+      </View>
+
+      {/* 底部安全提示 */}
+      <View
+        style={{
+          marginTop: "24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "6px",
+        }}
+      >
+        <Text style={{ fontSize: "14px" }}>✅</Text>
+        <Text style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)" }}>
+          安全登录，保护您的隐私
+        </Text>
+      </View>
       </View>
     </View>
   );

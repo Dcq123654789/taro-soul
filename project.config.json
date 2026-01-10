@@ -2,7 +2,7 @@
   "miniprogramRoot": "./dist",
   "projectname": "mywx",
   "description": "ditaro init mywx练习",
-  "appid": "touristappid",
+  "appid": "wxc6252c81b0702f2d",
   "setting": {
     "urlCheck": true,
     "es6": false,
