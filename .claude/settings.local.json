@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm run build:weapp:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(dir:*)"
     ]
   }
 }

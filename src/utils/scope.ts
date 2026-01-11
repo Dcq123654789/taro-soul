@@ -36,41 +36,8 @@ function toAbsoluteUrl(url: string): string {
   return url;
 }
 
-// ===================== Axios 实例与拦截器 =====================
-
-const base64Decode = (str: string): string => {
-  // 首先尝试用 atob 解码（标准 base64）
-  if (typeof atob !== "undefined") {
-    try {
-      return decodeURIComponent(atob(str));
-    } catch (error) {
-      // atob 解码失败，可能是备用方案编码的数据
-    }
-  }
-
-  // 尝试备用方案：恢复字符替换
-  try {
-    return decodeURIComponent(str.replace(/_/g, "%"));
-  } catch (error) {
-    //console.error("备用方案解码也失败:", error);
-    // 如果都失败，返回原始字符串
-    return str;
-  }
-};
-
-/** 安全存储工具函数（与登录页面保持一致） */
-const secureStorage = {
-  get: (key: string): string | null => {
-    try {
-      const encrypted = Taro.getStorageSync(key);
-      if (!encrypted) return null;
-      return base64Decode(encrypted);
-    } catch (error) {
-      console.error("读取存储失败:", error);
-      return null;
-    }
-  },
-};
+ 
+ 
 
 /** 获取token并检查过期 */
 function getTokenWithExpiryCheck(): string | null {
@@ -91,7 +58,7 @@ function getTokenWithExpiryCheck(): string | null {
   }
 
   // 尝试解密token
-  const token = secureStorage.get("token");
+  const token = Taro.getStorageSync("token");
   if (!token) {
     console.error("Token 解密失败，清除存储数据");
     // 如果解密失败，清除所有存储信息

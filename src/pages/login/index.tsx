@@ -63,30 +63,7 @@ const buildApiUrl = (apiPath: string, scopeRef: any): string => {
   return `http://localhost:8888${apiPath}`;
 };
 
-// 加密存储工具函数
-const secureStorage = {
-  set: (key: string, value: string) => {
-    try {
-      // 简单加密处理（生产环境建议使用更强的加密）
-      const encrypted = btoa(encodeURIComponent(value));
-      Taro.setStorageSync(key, encrypted);
-    } catch (error) {
-      console.error("存储失败:", error);
-    }
-  },
-
-  get: (key: string): string | null => {
-    try {
-      const encrypted = Taro.getStorageSync(key);
-      if (!encrypted) return null;
-      return decodeURIComponent(atob(encrypted));
-    } catch (error) {
-      console.error("读取存储失败:", error);
-      return null;
-    }
-  },
-};
-
+ 
 // 用户信息验证函数
 const validateUserInfo = (data: any): data is LoginResponse["data"] => {
   return (
@@ -218,8 +195,8 @@ export default function LoginPage() {
     const tokenExpireTime = Date.now() + 7 * 24 * 60 * 60 * 1000;
 
     // 使用安全的存储方式
-    secureStorage.set("token", token);
-    secureStorage.set("openid", openid);
+    Taro.setStorageSync("token", token);
+    Taro.setStorageSync("openid", openid);
     Taro.setStorageSync("tokenExpireTime", tokenExpireTime);
     Taro.setStorageSync("userInfo", userInfo);
 
